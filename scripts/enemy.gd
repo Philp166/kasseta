@@ -30,47 +30,47 @@ const STUN_MAX := 100.0
 const TYPES := {
 	"basic": {
 		"hp": 32.0, "speed": 62.0, "damage": 9.0, "range": 100.0, "stun_res": 1.0,
-		"w": 58.0, "h": 140.0, "color": Color(0.42, 0.68, 0.28), "coins": 2,
+		"w": 58.0, "h": 275.0, "color": Color(0.42, 0.68, 0.28), "coins": 2,
 		"windup": 0.6, "parryable": true, "unblockable": false, "ranged": false,
 	},
 	"runner": {
 		"hp": 20.0, "speed": 150.0, "damage": 8.0, "range": 150.0, "stun_res": 1.3,
-		"w": 46.0, "h": 118.0, "color": Color(0.72, 0.80, 0.20), "coins": 3,
+		"w": 46.0, "h": 250.0, "color": Color(0.72, 0.80, 0.20), "coins": 3,
 		"windup": 0.42, "parryable": true, "unblockable": false, "ranged": false,
 		"leap": true,
 	},
 	"fat": {
 		"hp": 90.0, "speed": 36.0, "damage": 20.0, "range": 115.0, "stun_res": 0.55,
-		"w": 92.0, "h": 158.0, "color": Color(0.25, 0.52, 0.24), "coins": 6,
+		"w": 92.0, "h": 330.0, "color": Color(0.25, 0.52, 0.24), "coins": 6,
 		"windup": 0.95, "parryable": false, "unblockable": true, "ranged": false,
 		"knock_res": 0.25, "interrupt_need": 2,
 	},
 	"spitter": {
 		"hp": 26.0, "speed": 48.0, "damage": 11.0, "range": 380.0, "stun_res": 1.0,
-		"w": 54.0, "h": 134.0, "color": Color(0.30, 0.72, 0.58), "coins": 4,
+		"w": 54.0, "h": 285.0, "color": Color(0.30, 0.72, 0.58), "coins": 4,
 		"windup": 1.0, "parryable": false, "unblockable": false, "ranged": true,
 	},
 	"bomber": {
 		"hp": 24.0, "speed": 74.0, "damage": 34.0, "range": 85.0, "stun_res": 1.1,
-		"w": 80.0, "h": 128.0, "color": Color(0.90, 0.60, 0.15), "coins": 5,
+		"w": 80.0, "h": 265.0, "color": Color(0.90, 0.60, 0.15), "coins": 5,
 		"windup": 0.55, "parryable": false, "unblockable": true, "ranged": false,
 		"explodes": true, "explosion_damage": 45.0, "explosion_radius": 230.0,
 	},
 	"boss_ch1": {
 		"hp": 340.0, "speed": 105.0, "damage": 26.0, "range": 130.0, "stun_res": 0.45,
-		"w": 120.0, "h": 200.0, "color": Color(0.55, 0.30, 0.30), "coins": 40,
+		"w": 120.0, "h": 400.0, "color": Color(0.55, 0.30, 0.30), "coins": 40,
 		"windup": 0.55, "parryable": true, "unblockable": false, "ranged": false,
 		"knock_res": 0.15, "interrupt_need": 2, "slam_every": 3, "combo_attacks": 2,
 	},
 	"boss_ch2": {
 		"hp": 430.0, "speed": 100.0, "damage": 30.0, "range": 140.0, "stun_res": 0.42,
-		"w": 130.0, "h": 210.0, "color": Color(0.60, 0.28, 0.28), "coins": 55,
+		"w": 130.0, "h": 420.0, "color": Color(0.60, 0.28, 0.28), "coins": 55,
 		"windup": 0.55, "parryable": true, "unblockable": false, "ranged": false,
 		"knock_res": 0.15, "interrupt_need": 2, "slam_every": 3, "combo_attacks": 2,
 	},
 	"boss_ch3": {
 		"hp": 530.0, "speed": 96.0, "damage": 34.0, "range": 150.0, "stun_res": 0.40,
-		"w": 140.0, "h": 220.0, "color": Color(0.65, 0.25, 0.25), "coins": 70,
+		"w": 140.0, "h": 440.0, "color": Color(0.65, 0.25, 0.25), "coins": 70,
 		"windup": 0.5, "parryable": true, "unblockable": false, "ranged": false,
 		"knock_res": 0.15, "interrupt_need": 2, "slam_every": 2, "combo_attacks": 3,
 	},
@@ -108,8 +108,6 @@ func setup(k: String) -> void:
 			sprite.texture = tex
 			sprite.centered = false
 			var sc: float = float(TYPES.get(k, TYPES["basic"])["h"]) / float(tex.get_height())
-			if is_boss:
-				sc *= 1.35
 			sprite.scale = Vector2(sc, sc)
 			sprite.offset = Vector2(-tex.get_width() * 0.5, -tex.get_height() + 8)
 			add_child(sprite)

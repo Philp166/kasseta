@@ -35,6 +35,7 @@ const COMBO_RESET := 2.2
 
 const BODY_W := 70.0
 const BODY_H := 150.0
+const SPRITE_H := 300.0   # экранный рост деда; зомби меряются от него
 
 enum A {IDLE, ATTACK, HEAVY_WINDUP, HEAVY_HIT, DODGE, PARRY, BLOCK, HURT, EXECUTE, DEAD, OBSTACLE, RELOAD, DASH}
 
@@ -85,8 +86,9 @@ func _ready() -> void:
 		sprite = Sprite2D.new()
 		sprite.texture = walk_tex[0]
 		sprite.centered = false
-		# ставим так, чтобы ступни были в точке узла
-		sprite.offset = Vector2(-walk_tex[0].get_width() * 0.5, -walk_tex[0].get_height() + 12)
+		var sc: float = SPRITE_H / float(walk_tex[0].get_height())
+		sprite.scale = Vector2(sc, sc)
+		sprite.offset = Vector2(-walk_tex[0].get_width() * 0.5, -walk_tex[0].get_height() + 10)
 		add_child(sprite)
 	set_weapon("heavy")
 
