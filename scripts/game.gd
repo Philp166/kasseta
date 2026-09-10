@@ -103,7 +103,7 @@ func _build_background() -> void:
 	var bd = Fonts.texture("res://art/bg/backdrop.png")
 	if bd != null:
 		var back := BgLayer.new()
-		back.setup(bd, 0.0, ROAD_TOP + 10.0, 0.30, -20)
+		back.setup(bd, 0.0, ROAD_TOP + 4.0, 0.30, -20)
 		add_child(back)
 		bg_layers.append(back)
 	var rd = Fonts.texture("res://art/bg/road.png")
