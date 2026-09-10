@@ -10,6 +10,21 @@ const Weapons = preload("res://scripts/weapons.gd")
 # всё остальное — Rubik Black/Bold. Одна семья, кириллица родная.
 const Fonts = preload("res://scripts/fonts.gd")
 
+# Иконки предметов из art/shop. Если картинки нет — рисуется пустая рамка.
+func _icon(id: String, size: float) -> Control:
+	var holder := Control.new()
+	holder.custom_minimum_size = Vector2(size, size)
+	holder.size = Vector2(size, size)
+	var tex = Fonts.texture("res://art/shop/%s.png" % id)
+	if tex != null:
+		var tr := TextureRect.new()
+		tr.texture = tex
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.size = Vector2(size, size)
+		holder.add_child(tr)
+	return holder
+
 signal play_requested(level)
 signal closed()
 
@@ -137,19 +152,25 @@ func _build_top_bar() -> void:
 	root.add_child(top_bar)
 	var p := _panel(Vector2(0, 0), Vector2(1280, 62), Color(0.14, 0.15, 0.19))
 	top_bar.add_child(p)
-	lbl_coins = _label("", Vector2(24, 16), 26, ACCENT)
+	var ic_coin := _icon("coin", 40.0)
+	ic_coin.position = Vector2(20, 11)
+	top_bar.add_child(ic_coin)
+	lbl_coins = _label("", Vector2(68, 16), 26, ACCENT)
 	top_bar.add_child(lbl_coins)
-	lbl_gems = _label("", Vector2(320, 16), 26, Color(0.45, 0.75, 0.95))
+	var ic_gem := _icon("gem", 40.0)
+	ic_gem.position = Vector2(230, 11)
+	top_bar.add_child(ic_gem)
+	lbl_gems = _label("", Vector2(278, 16), 26, Color(0.45, 0.75, 0.95))
 	top_bar.add_child(lbl_gems)
-	lbl_energy = _label("", Vector2(640, 16), 26, GOOD)
+	lbl_energy = _label("", Vector2(430, 16), 26, GOOD)
 	top_bar.add_child(lbl_energy)
 	_refresh_top()
 
 func _refresh_top() -> void:
 	if lbl_coins == null:
 		return
-	lbl_coins.text = "Монеты: %d" % Data.coins
-	lbl_gems.text = "Кристаллы: %d" % Data.gems
+	lbl_coins.text = "%d" % Data.coins
+	lbl_gems.text = "%d" % Data.gems
 	var e := "Энергия: %d/%d" % [Data.energy, Data.energy_max()]
 	if Data.energy < Data.energy_max():
 		var s := Data.seconds_to_next_energy()
@@ -415,9 +436,12 @@ func _shop_weapons(list: VBoxContainer) -> void:
 		var owned := Data.weapons.has(id)
 		var lvl := int(Data.weapons.get(id, 0))
 		var p := _row(list)
-		p.add_child(_label(String(w["name"]), Vector2(20, 12), 26, TEXT if owned else DIM))
+		var ic := _icon(id, 76.0)
+		ic.position = Vector2(12, 8)
+		p.add_child(ic)
+		p.add_child(_label(String(w["name"]), Vector2(104, 12), 26, TEXT if owned else DIM))
 		p.add_child(_label("%s   урон ×%.2f   открыт с главы %d" % [
-			cls["name"], float(w["mult"]), int(w["chapter"])], Vector2(20, 50), 19, DIM))
+			cls["name"], float(w["mult"]), int(w["chapter"])], Vector2(104, 50), 19, DIM))
 		if owned:
 			p.add_child(_label("ур. %d/%d" % [lvl, Items.UPGRADE_MAX], Vector2(690, 32), 22, ACCENT))
 			if lvl < Items.UPGRADE_MAX:
@@ -452,9 +476,12 @@ func _shop_armor(list: VBoxContainer) -> void:
 		var a: Dictionary = Items.ARMOR[id]
 		var owned := Data.armors.has(id)
 		var p := _row(list)
-		p.add_child(_label(String(a["name"]), Vector2(20, 12), 26, TEXT if owned else DIM))
+		var ic := _icon(id, 76.0)
+		ic.position = Vector2(12, 8)
+		p.add_child(ic)
+		p.add_child(_label(String(a["name"]), Vector2(104, 12), 26, TEXT if owned else DIM))
 		p.add_child(_label("+%d hp   −%d%% урона   %s" % [
-			int(a["hp"]), int(float(a["reduce"]) * 100.0), a["bonus"]], Vector2(20, 50), 19, DIM))
+			int(a["hp"]), int(float(a["reduce"]) * 100.0), a["bonus"]], Vector2(104, 50), 19, DIM))
 		if owned:
 			var eq := _button("Надето" if Data.equipped_armor == id else "Выбрать",
 				Vector2(950, 12), Vector2(180, 68), GOOD if Data.equipped_armor == id else PANEL2, 20)
@@ -478,8 +505,11 @@ func _shop_cons(list: VBoxContainer) -> void:
 	for id in Items.CONSUMABLE_ORDER:
 		var it: Dictionary = Items.CONSUMABLES[id]
 		var p := _row(list)
-		p.add_child(_label(String(it["name"]), Vector2(20, 12), 26))
-		p.add_child(_label("%s   в запасе: %d" % [it["desc"], int(Data.consumables.get(id, 0))], Vector2(20, 50), 19, DIM))
+		var ic := _icon(id, 76.0)
+		ic.position = Vector2(12, 8)
+		p.add_child(ic)
+		p.add_child(_label(String(it["name"]), Vector2(104, 12), 26))
+		p.add_child(_label("%s   в запасе: %d" % [it["desc"], int(Data.consumables.get(id, 0))], Vector2(104, 50), 19, DIM))
 		var price := int(it["price"])
 		var cur := String(it["cur"])
 		var b := _button("Купить\n%d %s" % [price, "монет" if cur == "coins" else "крист."],
