@@ -18,7 +18,7 @@ const SPAWN_LEFT := -220.0
 const SCROLL_SPEED := 175.0
 const APPROACH_SPEED := 120.0
 const CELL_DISTANCE := 900.0
-const ROAD_TOP := 430.0    # верх дороги на экране: по этой линии ходят персонажи
+const ROAD_TOP := 510.0    # верх дороги на экране: по этой линии ходят персонажи
 
 enum S {MENU, WALK, FIGHT, OBSTACLE, WIN, LOSE}
 
@@ -97,19 +97,21 @@ func _ready() -> void:
 # ------------------------------------------------------------- фон
 
 func _build_background() -> void:
-	# Два слоя: дальний фон (небо, холмы, постройки) и дорога, по которой
-	# идёт дед. Линия земли берётся из самой картинки дороги, а не из чисел,
-	# поэтому персонажи не могут "парить" при смене фона.
+	# Слои показываются в натуральном масштабе: из большой картинки берётся
+	# полоса нужной высоты и едет по горизонтали. Ничего не ужимается,
+	# поэтому композиция остаётся такой, как нарисована.
 	var bd = Fonts.texture("res://art/bg/backdrop.png")
 	if bd != null:
 		var back := BgLayer.new()
-		back.setup(bd, 0.0, ROAD_TOP + 4.0, 0.30, -20)
+		# дальний фон: показываем его НИЗ (там горизонт и постройки)
+		back.setup(bd, 0.0, ROAD_TOP, 0.30, -20, 1.0)
 		add_child(back)
 		bg_layers.append(back)
 	var rd = Fonts.texture("res://art/bg/road.png")
 	if rd != null:
 		var road := BgLayer.new()
-		road.setup(rd, ROAD_TOP, 760.0 - ROAD_TOP, 1.0, -10)
+		# дорога: показываем её ВЕРХ — обочину и начало полотна
+		road.setup(rd, ROAD_TOP, 760.0 - ROAD_TOP, 1.0, -10, 0.0)
 		add_child(road)
 		bg_layers.append(road)
 
@@ -877,30 +879,29 @@ class BgLayer extends Node2D:
 	var tex: Texture2D
 	var off: float = 0.0
 	var y: float = 0.0
-	var h: float = 100.0
-	var w: float = 100.0
+	var h: float = 100.0        # высота полосы на экране
 	var factor: float = 1.0
+	var anchor: float = 0.0     # 0 — берём верх картинки, 1 — низ
 
-	func setup(t: Texture2D, top: float, height: float, f: float, z: int) -> void:
+	func setup(t: Texture2D, top: float, height: float, f: float, z: int, anch: float) -> void:
 		tex = t
 		y = top
 		h = height
-		w = float(tex.get_width()) * h / float(tex.get_height())
 		factor = f
 		z_index = z
+		anchor = anch
 
 	func advance(px: float) -> void:
-		off = fmod(off + px * factor, w * 2.0)
+		off = fmod(off + px * factor, float(tex.get_width()))
 		queue_redraw()
 
 	func _draw() -> void:
-		var n := int(1400.0 / w) + 3
 		var tw := float(tex.get_width())
 		var th := float(tex.get_height())
-		for i in range(n + 1):
-			var x := float(i) * w - off - 60.0
-			var flip: bool = (i % 2) == 1
-			var src := Rect2(0, 0, tw, th)
-			if flip:
-				src = Rect2(tw, 0, -tw, th)      # отражение по горизонтали
-			draw_texture_rect_region(tex, Rect2(x, y, w, h), src)
+		# берём из картинки полосу ровно нужной высоты — без сжатия
+		var src_h: float = minf(h, th)
+		var src_y: float = (th - src_h) * anchor
+		var x := -off - 60.0
+		while x < 1400.0:
+			draw_texture_rect_region(tex, Rect2(x, y, tw, src_h), Rect2(0, src_y, tw, src_h))
+			x += tw
