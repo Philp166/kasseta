@@ -47,7 +47,6 @@ var player: Player
 var hud: CanvasLayer
 var camera: Camera2D
 var bg_layers: Array = []
-var ground: GroundPlane
 
 var test_mode: bool = false     # автотест: без хитстопа, чтобы прогон шёл быстро
 var shake: float = 0.0
@@ -97,29 +96,37 @@ func _ready() -> void:
 # ------------------------------------------------------------- фон
 
 func _build_background() -> void:
-	var sky := ColorRect.new()
-	sky.color = Color(0.80, 0.83, 0.86)
-	sky.position = Vector2(-60, -60)
-	sky.size = Vector2(1400, Persp.HORIZON_Y + 60)
-	sky.z_index = -20
-	add_child(sky)
-
-	# дальние силуэты у горизонта — три слоя с разной скоростью
+	# Слои фона: небо, дальний план, средний, земля. Каждый повторяется
+	# по горизонтали и едет со своей скоростью — так возникает глубина.
 	var specs := [
-		{"y": Persp.HORIZON_Y - 150.0, "h": 150.0, "w": 210.0, "gap": 400.0, "color": Color(0.70, 0.73, 0.78), "factor": 0.22},
-		{"y": Persp.HORIZON_Y - 95.0, "h": 95.0, "w": 150.0, "gap": 280.0, "color": Color(0.58, 0.61, 0.66), "factor": 0.45},
-		{"y": Persp.HORIZON_Y - 55.0, "h": 55.0, "w": 90.0, "gap": 180.0, "color": Color(0.47, 0.49, 0.54), "factor": 0.75},
+		{"tex": "res://art/bg/sky.png",    "y": -10.0,  "h": 430.0, "factor": 0.10, "z": -20},
+		{"tex": "res://art/bg/far.png",    "y": 120.0,  "h": 250.0, "factor": 0.30, "z": -16},
+		{"tex": "res://art/bg/mid.png",    "y": 60.0,   "h": 330.0, "factor": 0.60, "z": -12},
+		{"tex": "res://art/bg/ground.png", "y": Persp.HORIZON_Y, "h": 760.0 - Persp.HORIZON_Y, "factor": 1.0, "z": -8},
 	]
 	for spec in specs:
+		var tex = Fonts.texture(String(spec["tex"]))
+		if tex == null:
+			continue
 		var layer := BgLayer.new()
-		layer.setup(spec)
-		world.add_child(layer)
+		layer.setup(tex, float(spec["y"]), float(spec["h"]), float(spec["factor"]), int(spec["z"]))
+		add_child(layer)
 		bg_layers.append(layer)
 
-	# земля: уходящая вдаль плоскость с поперечными полосами
-	ground = GroundPlane.new()
-	ground.z_index = -10
-	add_child(ground)
+	if bg_layers.is_empty():
+		# запасной вариант, если картинок нет: ровная заливка
+		var sky := ColorRect.new()
+		sky.color = Color(0.80, 0.83, 0.86)
+		sky.position = Vector2(-60, -60)
+		sky.size = Vector2(1400, Persp.HORIZON_Y + 60)
+		sky.z_index = -20
+		add_child(sky)
+		var ground := ColorRect.new()
+		ground.color = Color(0.47, 0.45, 0.42)
+		ground.position = Vector2(-60, Persp.HORIZON_Y)
+		ground.size = Vector2(1400, 760 - Persp.HORIZON_Y)
+		ground.z_index = -8
+		add_child(ground)
 
 # ------------------------------------------------------------- HUD
 
@@ -381,8 +388,6 @@ func _hitstop(ms: int, shake_px: float) -> void:
 func _scroll(px: float) -> void:
 	for layer in bg_layers:
 		layer.advance(px)
-	if ground != null:
-		ground.advance(px)
 
 func _arrive() -> void:
 	var prev: Dictionary = cells[cell_index - 1]
@@ -869,56 +874,27 @@ class Projectile extends Node2D:
 	func _draw() -> void:
 		draw_rect(Rect2(-14, -10, 28, 20), Color(0.35, 0.85, 0.55))
 
-class GroundPlane extends Node2D:
-	var off: float = 0.0
-	func advance(px: float) -> void:
-		off = fmod(off + px, 160.0)
-		queue_redraw()
-	func _draw() -> void:
-		# плоскость земли от горизонта вниз
-		var top := Persp.HORIZON_Y
-		draw_rect(Rect2(-60, top, 1400, 760 - top), Color(0.47, 0.45, 0.42))
-		# поперечные полосы: чем ближе, тем реже — читается уход вдаль
-		var d := 0.0
-		while d <= 1.0:
-			var y := Persp.y_at(d)
-			var w := lerpf(0.16, 0.0, d)
-			var x0 := 640.0 - (700.0 * (1.0 - w))
-			var x1 := 640.0 + (700.0 * (1.0 - w))
-			draw_line(Vector2(x0, y), Vector2(x1, y), Color(0, 0, 0, 0.10), 2.0)
-			d += 0.1
-		# продольные линии, сходящиеся к горизонту
-		for i in range(-6, 7):
-			var xf := 640.0 + float(i) * 120.0 * 0.84
-			var xn := 640.0 + float(i) * 120.0
-			draw_line(Vector2(xf + off * 0.84 - 640.0 * 0.0, Persp.y_at(0.0)),
-					Vector2(xn, Persp.y_at(1.0)), Color(0, 0, 0, 0.07), 2.0)
-		# полоса горизонта
-		draw_rect(Rect2(-60, top, 1400, 6), Color(0.30, 0.30, 0.30, 0.5))
-
 class BgLayer extends Node2D:
+	var tex: Texture2D
 	var off: float = 0.0
 	var y: float = 0.0
 	var h: float = 100.0
 	var w: float = 100.0
-	var gap: float = 200.0
-	var color: Color = Color.GRAY
 	var factor: float = 1.0
 
-	func setup(spec: Dictionary) -> void:
-		y = float(spec["y"])
-		h = float(spec["h"])
-		w = float(spec["w"])
-		gap = float(spec["gap"])
-		color = spec["color"]
-		factor = float(spec["factor"])
-		z_index = -3
+	func setup(t: Texture2D, top: float, height: float, f: float, z: int) -> void:
+		tex = t
+		y = top
+		h = height
+		w = float(tex.get_width()) * h / float(tex.get_height())
+		factor = f
+		z_index = z
 
 	func advance(px: float) -> void:
-		off = fmod(off + px * factor, gap)
+		off = fmod(off + px * factor, w)
 		queue_redraw()
 
 	func _draw() -> void:
-		var n := int(1280.0 / gap) + 3
-		for i in range(n):
-			draw_rect(Rect2(float(i) * gap - off, y, w, h), color)
+		var n := int(1400.0 / w) + 2
+		for i in range(n + 1):
+			draw_texture_rect(tex, Rect2(float(i) * w - off - 60.0, y, w, h), false)
