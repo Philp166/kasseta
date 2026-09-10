@@ -16,23 +16,36 @@ def _outline_ratio(rgb, mask):
 
 
 def _strip_card(im):
+    """Снимает светлую однотонную подложку.
+
+    Заливка от углов не годится: предмет часто упирается прямо в угол
+    карточки. Поэтому фоном считается любая крупная светлая область без
+    цвета — карточка всегда серая, а сам предмет цветной или тёмный.
+    """
     a = np.array(im)
     if a.shape[0] < 8 or a.shape[1] < 8:
         return im
     rgb = a[:, :, :3].astype(int)
     alpha = a[:, :, 3] > 0
-    h, w = alpha.shape
-    seeds = [(0, 0), (0, w - 1), (h - 1, 0), (h - 1, w - 1)]
-    bgc = np.median(np.array([rgb[y, x] for y, x in seeds]), axis=0).astype(int)
-    close = (np.abs(rgb - bgc).sum(axis=2) <= 55) & alpha
-    lab, n = ndimage.label(close, np.ones((3, 3)))
-    ids = set(int(lab[y, x]) for y, x in seeds)
-    ids.discard(0)
-    if not ids:
+    mx = rgb.max(axis=2); mn = rgb.min(axis=2)
+    pale = (mx > 176) & ((mx - mn) < 30) & alpha        # светлое и бесцветное
+    lab, n = ndimage.label(pale, np.ones((3, 3)))
+    if n == 0:
         return im
-    keep = alpha & ~np.isin(lab, list(ids))
-    if keep.sum() < alpha.sum() * 0.10:
+    bg = np.zeros_like(pale)
+    total = float(alpha.sum())
+    for i in range(1, n + 1):
+        m = lab == i
+        if m.sum() > total * 0.05:                      # крупное пятно = подложка
+            bg |= m
+    keep = alpha & ~bg
+    if keep.sum() < total * 0.10:
         return im
+    lab2, n2 = ndimage.label(keep, np.ones((3, 3)))
+    if n2 > 1:                                          # оставляем самый крупный кусок
+        sz = ndimage.sum(keep, lab2, range(1, n2 + 1))
+        big = int(np.argmax(sz)) + 1
+        keep = (lab2 == big) | (keep & ndimage.binary_dilation(lab2 == big, np.ones((7, 7))))
     ys, xs = np.where(keep)
     out = a[ys.min():ys.max() + 1, xs.min():xs.max() + 1].copy()
     out[:, :, 3] = np.where(keep[ys.min():ys.max() + 1, xs.min():xs.max() + 1], 255, 0)
