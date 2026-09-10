@@ -9,6 +9,19 @@ signal wants_projectile(from_pos, dir, damage)
 signal wants_explosion(at_pos, damage, radius)
 
 const Persp = preload("res://scripts/persp.gd")
+const Fonts = preload("res://scripts/fonts.gd")
+
+# Картинки зомби. Боссы пока используют картинку толстяка, увеличенную.
+const SPRITES := {
+	"basic": "res://art/zombies/basic.png",
+	"runner": "res://art/zombies/runner.png",
+	"fat": "res://art/zombies/fat.png",
+	"spitter": "res://art/zombies/spitter.png",
+	"bomber": "res://art/zombies/bomber.png",
+	"boss_ch1": "res://art/zombies/fat.png",
+	"boss_ch2": "res://art/zombies/fat.png",
+	"boss_ch3": "res://art/zombies/fat.png",
+}
 
 enum E {WALK, WINDUP, RECOVER, STUNNED, STAGGER, DEAD}
 
@@ -83,8 +96,23 @@ var flash: float = 0.0
 
 var on_hit_player: Callable = Callable()
 
+var sprite: Sprite2D
+
 func setup(k: String) -> void:
 	kind = k
+	var path: String = String(SPRITES.get(k, ""))
+	if path != "":
+		var tex = Fonts.texture(path)
+		if tex != null:
+			sprite = Sprite2D.new()
+			sprite.texture = tex
+			sprite.centered = false
+			var sc: float = float(TYPES.get(k, TYPES["basic"])["h"]) / float(tex.get_height())
+			if is_boss:
+				sc *= 1.35
+			sprite.scale = Vector2(sc, sc)
+			sprite.offset = Vector2(-tex.get_width() * 0.5, -tex.get_height() + 8)
+			add_child(sprite)
 	data = TYPES.get(k, TYPES["basic"])
 	max_hp = float(data["hp"])
 	hp = max_hp
@@ -99,6 +127,17 @@ func _process(delta: float) -> void:
 	var dist: float = absf(position.x - target_x)
 	if state != E.DEAD and dist < 460.0:
 		depth = move_toward(depth, target_depth, 0.8 * delta)
+	if sprite != null:
+		sprite.flip_h = side < 0
+		var tint := Color.WHITE
+		if state == E.STUNNED:
+			tint = Color(1.3, 1.25, 0.5)
+		elif state == E.DEAD:
+			tint = Color(0.55, 0.35, 0.35)
+		if flash > 0.0:
+			tint = tint.lerp(Color(2, 2, 2), flash * 0.7)
+		sprite.modulate = tint
+		sprite.rotation = deg_to_rad(88.0 * float(side)) if state == E.DEAD else 0.0
 	position.y = Persp.y_at(depth)
 	var sc := Persp.scale_at(depth)
 	scale = Vector2(sc, sc)
@@ -264,13 +303,15 @@ func _draw() -> void:
 	if flash > 0.0:
 		col = col.lerp(Color.WHITE, flash * 0.8)
 
-	draw_circle(Vector2(0, -6), w * 0.46, Color(0, 0, 0, 0.20))
+	draw_circle(Vector2(0, -6), w * 0.40, Color(0, 0, 0, 0.20))
 
-	if state == E.DEAD:
-		draw_rect(Rect2(-h * 0.5, -w * 0.6, h, w * 0.6), col)
+	if sprite == null:
+		if state == E.DEAD:
+			draw_rect(Rect2(-h * 0.5, -w * 0.6, h, w * 0.6), col)
+			return
+		draw_rect(Rect2(-w * 0.5, -h, w, h), col)
+	elif state == E.DEAD:
 		return
-
-	draw_rect(Rect2(-w * 0.5, -h, w, h), col)
 
 	var bar_w := w + 10.0
 	draw_rect(Rect2(-bar_w * 0.5, -h - 18.0, bar_w, 8.0), Color(0, 0, 0, 0.45))
