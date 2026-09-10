@@ -96,25 +96,23 @@ func _ready() -> void:
 # ------------------------------------------------------------- фон
 
 func _build_background() -> void:
-	# Слои фона: небо, дальний план, средний, земля. Каждый повторяется
-	# по горизонтали и едет со своей скоростью — так возникает глубина.
-	var specs := [
-		{"tex": "res://art/bg/sky.png",    "y": -10.0,  "h": 430.0, "factor": 0.10, "z": -20},
-		{"tex": "res://art/bg/far.png",    "y": 120.0,  "h": 250.0, "factor": 0.30, "z": -16},
-		{"tex": "res://art/bg/mid.png",    "y": 60.0,   "h": 330.0, "factor": 0.60, "z": -12},
-		{"tex": "res://art/bg/ground.png", "y": Persp.HORIZON_Y, "h": 760.0 - Persp.HORIZON_Y, "factor": 1.0, "z": -8},
-	]
-	for spec in specs:
-		var tex = Fonts.texture(String(spec["tex"]))
-		if tex == null:
-			continue
-		var layer := BgLayer.new()
-		layer.setup(tex, float(spec["y"]), float(spec["h"]), float(spec["factor"]), int(spec["z"]))
-		add_child(layer)
-		bg_layers.append(layer)
+	# Фон — одна цельная картина фермы (без прямых стыков между планами)
+	# и передний план, который едет быстрее. Стыковка зеркальная: каждая
+	# вторая копия отражена, поэтому шва не видно никогда.
+	var scene_tex = Fonts.texture("res://art/bg/scene.png")
+	if scene_tex != null:
+		var back := BgLayer.new()
+		back.setup(scene_tex, 0.0, 760.0, 0.35, -20)
+		add_child(back)
+		bg_layers.append(back)
+	var fore_tex = Fonts.texture("res://art/bg/fore.png")
+	if fore_tex != null:
+		var fore := BgLayer.new()
+		fore.setup(fore_tex, 760.0 - 230.0, 230.0, 1.30, 40)
+		add_child(fore)
+		bg_layers.append(fore)
 
 	if bg_layers.is_empty():
-		# запасной вариант, если картинок нет: ровная заливка
 		var sky := ColorRect.new()
 		sky.color = Color(0.80, 0.83, 0.86)
 		sky.position = Vector2(-60, -60)
@@ -891,10 +889,17 @@ class BgLayer extends Node2D:
 		z_index = z
 
 	func advance(px: float) -> void:
-		off = fmod(off + px * factor, w)
+		off = fmod(off + px * factor, w * 2.0)
 		queue_redraw()
 
 	func _draw() -> void:
-		var n := int(1400.0 / w) + 2
+		var n := int(1400.0 / w) + 3
+		var tw := float(tex.get_width())
+		var th := float(tex.get_height())
 		for i in range(n + 1):
-			draw_texture_rect(tex, Rect2(float(i) * w - off - 60.0, y, w, h), false)
+			var x := float(i) * w - off - 60.0
+			var flip: bool = (i % 2) == 1
+			var src := Rect2(0, 0, tw, th)
+			if flip:
+				src = Rect2(tw, 0, -tw, th)      # отражение по горизонтали
+			draw_texture_rect_region(tex, Rect2(x, y, w, h), src)
