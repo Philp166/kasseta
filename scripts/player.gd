@@ -4,6 +4,11 @@ extends Node2D
 
 const Weapons = preload("res://scripts/weapons.gd")
 const Persp = preload("res://scripts/persp.gd")
+const Fonts = preload("res://scripts/fonts.gd")
+
+# Кадры ходьбы: нарезаны из сгенерированной полосы, выровнены по ступням
+const WALK_FRAMES := ["res://art/ded/walk/00.png","res://art/ded/walk/01.png",
+	"res://art/ded/walk/02.png","res://art/ded/walk/03.png"]
 
 signal died
 signal changed
@@ -59,8 +64,23 @@ var dash_left: float = 0.0
 var dash_cd: float = 0.0
 var dash_dir: int = 1
 
+var sprite: Sprite2D
+var walk_tex: Array = []
+var frame_t: float = 0.0
+
 func _ready() -> void:
 	z_index = 10
+	for path in WALK_FRAMES:
+		var t = Fonts.texture(path)
+		if t != null:
+			walk_tex.append(t)
+	if walk_tex.size() > 0:
+		sprite = Sprite2D.new()
+		sprite.texture = walk_tex[0]
+		sprite.centered = false
+		# ставим так, чтобы ступни были в точке узла
+		sprite.offset = Vector2(-walk_tex[0].get_width() * 0.5, -walk_tex[0].get_height() + 12)
+		add_child(sprite)
 	set_weapon("heavy")
 
 func set_weapon(id: String) -> void:
@@ -84,6 +104,15 @@ func _process(delta: float) -> void:
 	var s := Persp.scale_at(depth)
 	scale = Vector2(s, s)
 	z_index = Persp.z_at(depth) + 5
+	# перелистывание кадров ходьбы
+	if sprite != null and walk_tex.size() > 0:
+		frame_t += delta * (7.0 if anim != A.IDLE else 4.0)
+		var idx: int = int(frame_t) % walk_tex.size()
+		sprite.texture = walk_tex[idx]
+		sprite.flip_h = facing < 0
+		sprite.modulate = Color(1, 0.55, 0.45) if anim == A.HURT else (Color(1.25, 0.7, 0.6) if rage_active else Color.WHITE)
+		sprite.visible = anim != A.DEAD
+
 	if anim_left > 0.0:
 		anim_left -= delta
 		if anim_left <= 0.0:
@@ -362,6 +391,9 @@ func reset() -> void:
 # --- Отрисовка ------------------------------------------------------
 
 func _draw() -> void:
+	if sprite != null:
+		_draw_weapon_only()
+		return
 	var body_color := Color(0.20, 0.24, 0.38)
 	if rage_active:
 		body_color = Color(0.78, 0.22, 0.14)
@@ -437,3 +469,20 @@ func _dir_rect(length: float, thick: float, y: float, f: float) -> Rect2:
 	if f > 0.0:
 		return Rect2(BODY_W * 0.5, y, length, thick)
 	return Rect2(-BODY_W * 0.5 - length, y, length, thick)
+
+
+# Когда есть спрайт деда, из старой отрисовки оставляем только тень и оружие
+func _draw_weapon_only() -> void:
+	draw_circle(Vector2(0, -10), BODY_W * 0.34, Color(0, 0, 0, 0.20))
+	var f := float(facing)
+	match anim:
+		A.ATTACK:
+			draw_rect(_dir_rect(float(wdata["light_range"]) * 0.8, 18.0, -BODY_H * 0.65, f), Color(0.85, 0.85, 0.9, 0.9))
+		A.HEAVY_HIT:
+			draw_rect(_dir_rect(float(wdata["heavy_range"]) * 0.8, 26.0, -BODY_H * 0.6, f), Color(0.95, 0.82, 0.25))
+		A.HEAVY_WINDUP:
+			draw_rect(Rect2(-12.0, -BODY_H - 50.0, 16.0, 80.0), Color(0.95, 0.82, 0.25))
+		A.PARRY:
+			draw_rect(_dir_rect(22.0, BODY_H * 0.8, -BODY_H * 0.8, f), Color(0.35, 0.85, 1.0) if parry_left > 0.0 else Color(0.35, 0.55, 0.85))
+		A.EXECUTE:
+			draw_rect(_dir_rect(170.0, 30.0, -BODY_H * 0.85, f), Color(0.95, 0.12, 0.12))
