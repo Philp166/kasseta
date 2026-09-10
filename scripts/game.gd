@@ -97,21 +97,38 @@ func _ready() -> void:
 # ------------------------------------------------------------- фон
 
 func _build_background() -> void:
-	# Одна сплошная картина: небо, ферма и дорога нарисованы вместе.
-	# Она едет целиком — никаких отдельных слоёв и подгонок.
-	var full = Fonts.texture("res://art/bg/full.png")
-	if full != null:
-		var layer := BgLayer.new()
-		layer.setup(full, 0.0, 760.0, 1.0, -20, 0.0)
-		add_child(layer)
-		bg_layers.append(layer)
-	else:
-		var sky := ColorRect.new()
-		sky.color = Color(0.80, 0.83, 0.86)
-		sky.position = Vector2(-60, -60)
-		sky.size = Vector2(1400, ROAD_TOP + 60)
-		sky.z_index = -20
-		add_child(sky)
+	# Слои: небо (градиент кодом) -> дальние холмы (плитка) -> объекты фермы
+	# (разброс без повторов) -> земля с дорогой (плитка). Плитки сшиты так,
+	# что левый и правый край совпадают попиксельно — стыков нет.
+	var sky := SkyLayer.new()
+	sky.z_index = -40
+	add_child(sky)
+
+	var hills = Fonts.texture("res://art/bg2_hills.png")
+	if hills != null:
+		var hl := BgLayer.new()
+		var k_h := 0.5
+		hl.setup(hills, 545.0 - hills.get_height() * k_h, hills.get_height() * k_h, 0.12, -35, 0.0, k_h)
+		add_child(hl)
+		bg_layers.append(hl)
+
+	var objs := ScatterLayer.new()
+	objs.setup(506.0, 0.45, -30,
+		["barn", "silo", "windmill", "house", "tree", "fence", "pole", "truck", "hay"],
+		{"barn": 260, "silo": 300, "windmill": 330, "house": 250, "tree": 220,
+		 "fence": 70, "pole": 240, "truck": 110, "hay": 70},
+		60.0, 320.0, false)
+	add_child(objs)
+	bg_layers.append(objs)
+
+	var ground = Fonts.texture("res://art/bg2_ground.png")
+	if ground != null:
+		var gl := BgLayer.new()
+		var k_g := 170.0 / 488.0
+		# в плитке верх дороги на 193-й строке; на экране он должен лечь на ROAD_TOP
+		gl.setup(ground, ROAD_TOP - 193.0 * k_g, ground.get_height() * k_g, 1.0, -25, 0.0, k_g)
+		add_child(gl)
+		bg_layers.append(gl)
 
 # ------------------------------------------------------------- HUD
 
@@ -859,6 +876,15 @@ class Projectile extends Node2D:
 	func _draw() -> void:
 		draw_rect(Rect2(-14, -10, 28, 20), Color(0.35, 0.85, 0.55))
 
+class SkyLayer extends Node2D:
+	func _draw() -> void:
+		var top := Color(0.643, 0.725, 0.729)
+		var bot := Color(0.615, 0.667, 0.631)
+		draw_polygon(PackedVector2Array([Vector2(-100, -100), Vector2(1400, -100), Vector2(1400, 600), Vector2(-100, 600)]),
+			PackedColorArray([top, top, bot, bot]))
+		draw_rect(Rect2(-100, 600, 1500, 300), bot)
+
+
 class BgLayer extends Node2D:
 	var tex: Texture2D
 	var off: float = 0.0
@@ -866,28 +892,30 @@ class BgLayer extends Node2D:
 	var h: float = 100.0        # высота полосы на экране
 	var factor: float = 1.0
 	var anchor: float = 0.0     # 0 — берём верх картинки, 1 — низ
+	var k: float = 1.0          # масштаб плитки на экране
 
-	func setup(t: Texture2D, top: float, height: float, f: float, z: int, anch: float) -> void:
+	func setup(t: Texture2D, top: float, height: float, f: float, z: int, anch: float, scale_k: float = 1.0) -> void:
 		tex = t
 		y = top
 		h = height
 		factor = f
 		z_index = z
 		anchor = anch
+		k = scale_k
 
 	func advance(px: float) -> void:
-		off = fmod(off + px * factor, float(tex.get_width()))
+		off = fmod(off + px * factor, float(tex.get_width()) * k)
 		queue_redraw()
 
 	func _draw() -> void:
-		var tw := float(tex.get_width())
-		var th := float(tex.get_height())
-		# берём из картинки полосу ровно нужной высоты — без сжатия
-		var src_h: float = minf(h, th)
-		var src_y: float = (th - src_h) * anchor
+		var tw := float(tex.get_width()) * k
+		var th := float(tex.get_height()) * k
+		var src_h: float = minf(h, th) / k
+		var src_y: float = (float(tex.get_height()) - src_h) * anchor
 		var x := -off - 60.0
 		while x < 1400.0:
-			draw_texture_rect_region(tex, Rect2(x, y, tw, src_h), Rect2(0, src_y, tw, src_h))
+			# перекрытие в 1px, чтобы при дробном сдвиге не просвечивала щель
+			draw_texture_rect_region(tex, Rect2(x, y, tw + 1.0, src_h * k), Rect2(0, src_y, float(tex.get_width()), src_h))
 			x += tw
 
 
@@ -917,7 +945,7 @@ class ScatterLayer extends Node2D:
 		rng.seed = 20260910 + z
 		var fonts = preload("res://scripts/fonts.gd")
 		for n in names:
-			var t = fonts.texture("res://art/bgobj/%s.png" % n)
+			var t = fonts.texture("res://art/bg2obj/%s.png" % n)
 			if t != null:
 				tex[n] = t
 		next_x = -300.0
