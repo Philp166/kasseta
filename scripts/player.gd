@@ -7,8 +7,15 @@ const Persp = preload("res://scripts/persp.gd")
 const Fonts = preload("res://scripts/fonts.gd")
 
 # Кадры ходьбы: нарезаны из сгенерированной полосы, выровнены по ступням
-const WALK_FRAMES := ["res://art/ded/walk/00.png","res://art/ded/walk/01.png",
-	"res://art/ded/walk/02.png","res://art/ded/walk/03.png"]
+# Кадры ходьбы: вырезаны из видео-клипа (живое движение).
+# Рядом лежит art/ded/walk — та же ходьба, нарисованная 4 кадрами.
+const WALK_FRAMES := ["res://art/ded/walk_video/00.png","res://art/ded/walk_video/01.png",
+	"res://art/ded/walk_video/02.png","res://art/ded/walk_video/03.png",
+	"res://art/ded/walk_video/04.png","res://art/ded/walk_video/05.png",
+	"res://art/ded/walk_video/06.png","res://art/ded/walk_video/07.png",
+	"res://art/ded/walk_video/08.png","res://art/ded/walk_video/09.png",
+	"res://art/ded/walk_video/10.png","res://art/ded/walk_video/11.png",
+	"res://art/ded/walk_video/12.png"]
 
 signal died
 signal changed
@@ -106,7 +113,7 @@ func _process(delta: float) -> void:
 	z_index = Persp.z_at(depth) + 5
 	# перелистывание кадров ходьбы
 	if sprite != null and walk_tex.size() > 0:
-		frame_t += delta * (7.0 if anim != A.IDLE else 4.0)
+		frame_t += delta * (12.0 if anim != A.IDLE else 8.0)
 		var idx: int = int(frame_t) % walk_tex.size()
 		sprite.texture = walk_tex[idx]
 		sprite.flip_h = facing < 0
