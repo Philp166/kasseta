@@ -97,14 +97,18 @@ func _ready() -> void:
 # ------------------------------------------------------------- фон
 
 func _build_background() -> void:
-	# Дальний фон — прежняя панорама, но обрезанная по чистому небу с обоих
-	# краёв: на стыке копий встречается пустое небо, поэтому шов не читается.
+	# Фон СТОИТ на месте одной цельной картиной — повторять нечего, стыков нет.
+	# Движение даёт дорога: она одна тайлится и едет в петле.
 	var bd = Fonts.texture("res://art/bg/backdrop.png")
 	if bd != null:
-		var back := BgLayer.new()
-		back.setup(bd, 0.0, ROAD_TOP + 6.0, 0.30, -20, 1.0)
+		var back := Sprite2D.new()
+		back.texture = bd
+		back.centered = false
+		var s: float = 1280.0 / float(bd.get_width())
+		back.scale = Vector2(s, s)
+		back.position = Vector2(0, ROAD_TOP + 8.0 - float(bd.get_height()) * s)
+		back.z_index = -20
 		add_child(back)
-		bg_layers.append(back)
 
 	var rd = Fonts.texture("res://art/bg/road.png")
 	if rd != null:
@@ -112,14 +116,6 @@ func _build_background() -> void:
 		road.setup(rd, ROAD_TOP, 760.0 - ROAD_TOP, 1.0, -10, 0.0)
 		add_child(road)
 		bg_layers.append(road)
-
-	if bg_layers.is_empty():
-		var sky := ColorRect.new()
-		sky.color = Color(0.80, 0.83, 0.86)
-		sky.position = Vector2(-60, -60)
-		sky.size = Vector2(1400, ROAD_TOP + 60)
-		sky.z_index = -20
-		add_child(sky)
 
 # ------------------------------------------------------------- HUD
 
