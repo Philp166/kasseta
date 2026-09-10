@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>Кассета</title>
+    <meta property="og:title" content="Кассета" />
+    <meta property="og:description" content="Старый фермер, лопата и толпа зомби. Отбери свою кассету. 2D-экшен с одним пальцем." />
+    <meta property="og:image" content="/cover.png" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Rubik+Wet+Paint&family=Rubik:wght@500;700;900&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #0e0f12;
+        --paper: #e9dfc7;
+        --ink: #17181c;
+        --accent: #d9542b;
+        --accent2: #c8b14a;
+        --dim: #8f8a7c;
+        --hp: #c93b2e;
+        --rage: #e08d2c;
+      }
+      * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+      html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; touch-action: none; overscroll-behavior: none; }
+      body { font-family: "Rubik", system-ui, sans-serif; color: var(--paper); user-select: none; -webkit-user-select: none; }
+      #stage { position: fixed; inset: 0; display: grid; place-items: center; background: #000; }
+      canvas { display: block; image-rendering: auto; background: #0e0f12; }
+      .overlay {
+        position: fixed; inset: 0; display: none; place-items: center; text-align: center;
+        background: rgba(10, 10, 12, 0.72); backdrop-filter: blur(3px);
+      }
+      .overlay.on { display: grid; }
+      .card { max-width: 560px; width: 92vw; padding: 28px 24px; }
+      h1 { font-family: "Rubik Wet Paint", "Rubik", cursive; font-weight: 400; font-size: clamp(56px, 12vw, 108px); line-height: 0.95; margin: 0 0 6px; color: var(--paper); letter-spacing: 0.02em; }
+      h2 { font-family: "Rubik Wet Paint", "Rubik", cursive; font-weight: 400; font-size: clamp(38px, 8vw, 64px); margin: 0 0 12px; }
+      .sub { color: var(--dim); font-weight: 500; margin: 0 0 22px; font-size: 15px; }
+      .btn {
+        display: inline-block; font: 900 22px/1 "Rubik", sans-serif; color: var(--ink); background: var(--paper);
+        border: 0; border-radius: 14px; padding: 16px 30px; margin: 6px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.04em;
+        box-shadow: 0 6px 0 #6b5e45; transform: translateY(0); transition: transform 60ms, box-shadow 60ms;
+      }
+      .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #6b5e45; }
+      .btn.accent { background: var(--accent); color: #fff3e6; box-shadow: 0 6px 0 #7a2a12; }
+      .btn.accent:active { box-shadow: 0 2px 0 #7a2a12; }
+      .btn.ghost { background: transparent; color: var(--paper); box-shadow: inset 0 0 0 3px var(--paper); }
+      .levels { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 8px 0 18px; }
+      .lv { position: relative; aspect-ratio: 1; border-radius: 12px; background: #23242a; color: var(--paper); font: 900 24px "Rubik"; display: grid; place-items: center; cursor: pointer; border: 3px solid transparent; }
+      .lv.done { background: #3a3d2b; border-color: var(--accent2); }
+      .lv.locked { opacity: 0.35; cursor: default; }
+      .lv.boss { border-color: var(--accent); }
+      .lv small { position: absolute; bottom: 4px; font-size: 11px; letter-spacing: 1px; color: var(--accent2); }
+      .stats { display: flex; gap: 22px; justify-content: center; color: var(--dim); font-weight: 700; margin: 12px 0 18px; }
+      .stats b { display: block; color: var(--paper); font-size: 30px; }
+      .stars { font-size: 44px; letter-spacing: 6px; color: var(--accent2); margin: 4px 0 8px; }
+      .stars .off { color: #3a3a3a; }
+      .hint { color: var(--dim); font-size: 13px; line-height: 1.5; margin-top: 16px; }
+      .hint b { color: var(--paper); }
+      #status { position: fixed; left: 10px; bottom: 8px; font-size: 11px; color: #555; }
+      #status.error { color: var(--hp); }
+      #rotate { position: fixed; inset: 0; display: none; place-items: center; background: #0e0f12; z-index: 50; font-weight: 700; color: var(--dim); }
+      @media (orientation: portrait) and (max-width: 700px) { #rotate { display: grid; } }
+    </style>
+  </head>
+  <body>
+    <div id="stage"><canvas id="c" width="1280" height="720"></canvas></div>
+
+    <div id="menu" class="overlay on">
+      <div class="card">
+        <h1>КАССЕТА</h1>
+        <p class="sub">Ниндзя украл у деда единственную кассету. Дед взял лопату.</p>
+        <button id="play" class="btn accent">Играть</button>
+        <button id="pick" class="btn">Уровни</button>
+        <p class="hint"><b>Тап</b> по половине экрана — удар в ту сторону · <b>Зажать</b> — тяжёлый удар · <b>Свайп вниз</b> — уклон · <b>Свайп вбок</b> — парирование</p>
+      </div>
+    </div>
+
+    <div id="levels" class="overlay">
+      <div class="card">
+        <h2>Уровни</h2>
+        <div class="stats"><div>Убито<b id="s-kills">0</b></div><div>Комбо<b id="s-combo">0</b></div></div>
+        <div id="grid" class="levels"></div>
+        <button id="back" class="btn ghost">Назад</button>
+      </div>
+    </div>
+
+    <div id="result" class="overlay">
+      <div class="card">
+        <h2 id="r-title">Уровень пройден</h2>
+        <div id="r-stars" class="stars"></div>
+        <div class="stats"><div>Убито<b id="r-kills">0</b></div><div>Комбо<b id="r-combo">0</b></div><div>Урон<b id="r-dmg">0</b></div></div>
+        <button id="r-next" class="btn accent">Дальше</button>
+        <button id="r-retry" class="btn">Ещё раз</button>
+        <button id="r-menu" class="btn ghost">Меню</button>
+      </div>
+    </div>
+
+    <div id="rotate">Поверни телефон горизонтально</div>
+    <p id="status"></p>
+    <script type="module" src="/client.js"></script>
+  </body>
+</html>
