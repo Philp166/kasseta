@@ -30,7 +30,6 @@ def key(a):
         sizes = ndimage.sum(fg, lab, range(1, n + 1))
         keep = [i + 1 for i, s in enumerate(sizes) if s > sizes.max() * 0.02]
         fg = np.isin(lab, keep)
-    fg = ndimage.binary_fill_holes(fg)
     return fg
 
 masks = [key(a) for a in frames]
