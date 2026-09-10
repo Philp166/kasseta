@@ -34,10 +34,27 @@ def _strip_card(im):
         return im
     bg = np.zeros_like(pale)
     total = float(alpha.sum())
+    h, w = pale.shape
+    # 1) крупные светлые области — это карточка-подложка; запоминаем её цвет
+    card_cols = []
     for i in range(1, n + 1):
         m = lab == i
-        if m.sum() > total * 0.05:                      # крупное пятно = подложка
+        if m.sum() > total * 0.05:
             bg |= m
+            card_cols.append(rgb[m].mean(axis=0))
+    # 2) мелкие замкнутые кармашки убираем, только если они ТОГО ЖЕ цвета,
+    #    что и подложка: иначе съедаются белая маска, крышка аптечки и т. п.
+    if card_cols:
+        card = np.mean(np.array(card_cols), axis=0)
+        for i in range(1, n + 1):
+            m = lab == i
+            if m.sum() > total * 0.05 or m.sum() < 20:
+                continue
+            ys, xs = np.where(m)
+            if ys.min() == 0 or xs.min() == 0 or ys.max() == h - 1 or xs.max() == w - 1:
+                continue
+            if np.abs(rgb[m].mean(axis=0) - card).sum() < 26:
+                bg |= m
     keep = alpha & ~bg
     if keep.sum() < total * 0.10:
         return im
