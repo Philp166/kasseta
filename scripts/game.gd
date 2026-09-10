@@ -18,7 +18,7 @@ const SPAWN_LEFT := -220.0
 const SCROLL_SPEED := 175.0
 const APPROACH_SPEED := 120.0
 const CELL_DISTANCE := 900.0
-const ROAD_TOP := 510.0    # верх дороги на экране: по этой линии ходят персонажи
+const ROAD_TOP := 560.0    # верх дороги на экране: по этой линии ходят персонажи
 
 enum S {MENU, WALK, FIGHT, OBSTACLE, WIN, LOSE}
 
@@ -97,25 +97,21 @@ func _ready() -> void:
 # ------------------------------------------------------------- фон
 
 func _build_background() -> void:
-	# Фон СТОИТ на месте одной цельной картиной — повторять нечего, стыков нет.
-	# Движение даёт дорога: она одна тайлится и едет в петле.
-	var bd = Fonts.texture("res://art/bg/backdrop.png")
-	if bd != null:
-		var back := Sprite2D.new()
-		back.texture = bd
-		back.centered = false
-		var s: float = 1280.0 / float(bd.get_width())
-		back.scale = Vector2(s, s)
-		back.position = Vector2(0, ROAD_TOP + 8.0 - float(bd.get_height()) * s)
-		back.z_index = -20
-		add_child(back)
-
-	var rd = Fonts.texture("res://art/bg/road.png")
-	if rd != null:
-		var road := BgLayer.new()
-		road.setup(rd, ROAD_TOP, 760.0 - ROAD_TOP, 1.0, -10, 0.0)
-		add_child(road)
-		bg_layers.append(road)
+	# Одна сплошная картина: небо, ферма и дорога нарисованы вместе.
+	# Она едет целиком — никаких отдельных слоёв и подгонок.
+	var full = Fonts.texture("res://art/bg/full.png")
+	if full != null:
+		var layer := BgLayer.new()
+		layer.setup(full, 0.0, 760.0, 1.0, -20, 0.0)
+		add_child(layer)
+		bg_layers.append(layer)
+	else:
+		var sky := ColorRect.new()
+		sky.color = Color(0.80, 0.83, 0.86)
+		sky.position = Vector2(-60, -60)
+		sky.size = Vector2(1400, ROAD_TOP + 60)
+		sky.z_index = -20
+		add_child(sky)
 
 # ------------------------------------------------------------- HUD
 
