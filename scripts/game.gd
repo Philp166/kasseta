@@ -18,6 +18,7 @@ const SPAWN_LEFT := -220.0
 const SCROLL_SPEED := 175.0
 const APPROACH_SPEED := 120.0
 const CELL_DISTANCE := 900.0
+const ROAD_TOP := 430.0    # верх дороги на экране: по этой линии ходят персонажи
 
 enum S {MENU, WALK, FIGHT, OBSTACLE, WIN, LOSE}
 
@@ -96,33 +97,33 @@ func _ready() -> void:
 # ------------------------------------------------------------- фон
 
 func _build_background() -> void:
-	# Фон — одна цельная картина фермы (без прямых стыков между планами)
-	# и передний план, который едет быстрее. Стыковка зеркальная: каждая
-	# вторая копия отражена, поэтому шва не видно никогда.
-	var scene_tex = Fonts.texture("res://art/bg/scene.png")
-	if scene_tex != null:
+	# Два слоя: дальний фон (небо, холмы, постройки) и дорога, по которой
+	# идёт дед. Линия земли берётся из самой картинки дороги, а не из чисел,
+	# поэтому персонажи не могут "парить" при смене фона.
+	var bd = Fonts.texture("res://art/bg/backdrop.png")
+	if bd != null:
 		var back := BgLayer.new()
-		back.setup(scene_tex, 0.0, 760.0, 0.35, -20)
+		back.setup(bd, 0.0, ROAD_TOP + 10.0, 0.30, -20)
 		add_child(back)
 		bg_layers.append(back)
-	var fore_tex = Fonts.texture("res://art/bg/fore.png")
-	if fore_tex != null:
-		var fore := BgLayer.new()
-		fore.setup(fore_tex, 760.0 - 230.0, 230.0, 1.30, 40)
-		add_child(fore)
-		bg_layers.append(fore)
+	var rd = Fonts.texture("res://art/bg/road.png")
+	if rd != null:
+		var road := BgLayer.new()
+		road.setup(rd, ROAD_TOP, 760.0 - ROAD_TOP, 1.0, -10)
+		add_child(road)
+		bg_layers.append(road)
 
 	if bg_layers.is_empty():
 		var sky := ColorRect.new()
 		sky.color = Color(0.80, 0.83, 0.86)
 		sky.position = Vector2(-60, -60)
-		sky.size = Vector2(1400, Persp.HORIZON_Y + 60)
+		sky.size = Vector2(1400, ROAD_TOP + 60)
 		sky.z_index = -20
 		add_child(sky)
 		var ground := ColorRect.new()
 		ground.color = Color(0.47, 0.45, 0.42)
-		ground.position = Vector2(-60, Persp.HORIZON_Y)
-		ground.size = Vector2(1400, 760 - Persp.HORIZON_Y)
+		ground.position = Vector2(-60, ROAD_TOP)
+		ground.size = Vector2(1400, 760 - ROAD_TOP)
 		ground.z_index = -8
 		add_child(ground)
 

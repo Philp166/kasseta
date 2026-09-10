@@ -4,11 +4,11 @@ extends RefCounted
 # depth 0.0 — дальний край земли, 1.0 — ближний к камере.
 # Экранная Y и масштаб фигуры считаются отсюда, чтобы всё сходилось.
 
-const FAR_Y := 400.0
-const NEAR_Y := 690.0
-const FAR_SCALE := 0.68
+const FAR_Y := 480.0
+const NEAR_Y := 700.0
+const FAR_SCALE := 0.80
 const NEAR_SCALE := 1.12
-const HORIZON_Y := 340.0
+const HORIZON_Y := 430.0
 
 static func y_at(depth: float) -> float:
 	return lerpf(FAR_Y, NEAR_Y, clampf(depth, 0.0, 1.0))
