@@ -97,37 +97,43 @@ func _ready() -> void:
 # ------------------------------------------------------------- фон
 
 func _build_background() -> void:
-	# Слои показываются в натуральном масштабе: из большой картинки берётся
-	# полоса нужной высоты и едет по горизонтали. Ничего не ужимается,
-	# поэтому композиция остаётся такой, как нарисована.
-	var bd = Fonts.texture("res://art/bg/backdrop.png")
-	if bd != null:
-		var back := BgLayer.new()
-		# дальний фон: показываем его НИЗ (там горизонт и постройки)
-		back.setup(bd, 0.0, ROAD_TOP, 0.30, -20, 1.0)
-		add_child(back)
-		bg_layers.append(back)
+	# Всё, кроме дороги, — не панорамы, а отдельные объекты, которые движок
+	# расставляет вдоль линии с разными промежутками. Стыковать нечего:
+	# ни неба, ни холмов, ни построек не существует как повторяемой картинки.
+	var sky := ColorRect.new()          # небо — ровная заливка
+	sky.color = Color(0.71, 0.72, 0.66)
+	sky.position = Vector2(-60, -60)
+	sky.size = Vector2(1400, ROAD_TOP + 70)
+	sky.z_index = -40
+	add_child(sky)
+
+	var clouds := ScatterLayer.new()
+	clouds.setup(ROAD_TOP - 210.0, 0.10, -34, ["cloud1", "cloud2", "cloud3"],
+		{"cloud1": 70.0, "cloud2": 90.0, "cloud3": 60.0}, 240.0, 900.0, true)
+	add_child(clouds)
+	bg_layers.append(clouds)
+
+	var hills := ScatterLayer.new()
+	hills.setup(ROAD_TOP + 6.0, 0.18, -30, ["hill1", "hill2", "hill3"],
+		{"hill1": 120.0, "hill2": 150.0, "hill3": 95.0}, -140.0, 60.0, false)
+	add_child(hills)
+	bg_layers.append(hills)
+
+	var props := ScatterLayer.new()
+	props.setup(ROAD_TOP + 6.0, 0.36, -20,
+		["barn", "silo", "windmill", "shed", "pole", "house", "tree", "saplings", "shrub", "fence", "truck", "hay"],
+		{"barn": 210.0, "silo": 230.0, "windmill": 240.0, "shed": 165.0, "pole": 200.0,
+		 "house": 185.0, "tree": 195.0, "saplings": 145.0, "shrub": 85.0,
+		 "fence": 85.0, "truck": 105.0, "hay": 95.0}, 140.0, 620.0, false)
+	add_child(props)
+	bg_layers.append(props)
+
 	var rd = Fonts.texture("res://art/bg/road.png")
 	if rd != null:
 		var road := BgLayer.new()
-		# дорога: показываем её ВЕРХ — обочину и начало полотна
 		road.setup(rd, ROAD_TOP, 760.0 - ROAD_TOP, 1.0, -10, 0.0)
 		add_child(road)
 		bg_layers.append(road)
-
-	if bg_layers.is_empty():
-		var sky := ColorRect.new()
-		sky.color = Color(0.80, 0.83, 0.86)
-		sky.position = Vector2(-60, -60)
-		sky.size = Vector2(1400, ROAD_TOP + 60)
-		sky.z_index = -20
-		add_child(sky)
-		var ground := ColorRect.new()
-		ground.color = Color(0.47, 0.45, 0.42)
-		ground.position = Vector2(-60, ROAD_TOP)
-		ground.size = Vector2(1400, 760 - ROAD_TOP)
-		ground.z_index = -8
-		add_child(ground)
 
 # ------------------------------------------------------------- HUD
 
@@ -905,3 +911,68 @@ class BgLayer extends Node2D:
 		while x < 1400.0:
 			draw_texture_rect_region(tex, Rect2(x, y, tw, src_h), Rect2(0, src_y, tw, src_h))
 			x += tw
+
+
+# Слой рассыпанных объектов: бесконечная лента без повторов и стыков
+class ScatterLayer extends Node2D:
+	var tex: Dictionary = {}
+	var heights: Dictionary = {}
+	var items: Array = []
+	var base_y: float = 0.0
+	var factor: float = 0.35
+	var gap_min: float = 140.0
+	var gap_max: float = 600.0
+	var jitter_y: bool = false
+	var scroll: float = 0.0
+	var next_x: float = 0.0
+	var rng := RandomNumberGenerator.new()
+
+	func setup(ground_y: float, f: float, z: int, names: Array, hh: Dictionary,
+			gmin: float, gmax: float, floaty: bool) -> void:
+		base_y = ground_y
+		factor = f
+		z_index = z
+		heights = hh
+		gap_min = gmin
+		gap_max = gmax
+		jitter_y = floaty
+		rng.seed = 20260910 + z
+		var fonts = preload("res://scripts/fonts.gd")
+		for n in names:
+			var t = fonts.texture("res://art/bgobj/%s.png" % n)
+			if t != null:
+				tex[n] = t
+		next_x = -300.0
+		while next_x < 1700.0:
+			_spawn()
+
+	func _spawn() -> void:
+		if tex.is_empty():
+			next_x += 400.0
+			return
+		var keys: Array = tex.keys()
+		var n: String = String(keys[rng.randi_range(0, keys.size() - 1)])
+		var t = tex[n]
+		var h: float = float(heights.get(n, 160.0)) * rng.randf_range(0.88, 1.15)
+		var w: float = float(t.get_width()) * h / float(t.get_height())
+		var dy: float = rng.randf_range(-90.0, 60.0) if jitter_y else 0.0
+		items.append({"x": next_x, "t": t, "w": w, "h": h, "dy": dy})
+		next_x += w + rng.randf_range(gap_min, gap_max)
+
+	func advance(px: float) -> void:
+		scroll += px * factor
+		while next_x - scroll < 1700.0:
+			_spawn()
+		var alive: Array = []
+		for it in items:
+			if it["x"] - scroll + it["w"] > -400.0:
+				alive.append(it)
+		items = alive
+		queue_redraw()
+
+	func _draw() -> void:
+		for it in items:
+			var x: float = it["x"] - scroll
+			if x > 1450.0:
+				continue
+			draw_texture_rect(it["t"], Rect2(x, base_y - it["h"] + it["dy"], it["w"], it["h"]), false)
