@@ -49,9 +49,9 @@ const OBJ_H = { barn: 260, silo: 300, windmill: 330, house: 250, tree: 220, fenc
 function img(src) { return new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; }); }
 async function loadAll() {
   sheetMeta = await (await fetch("/sprites/sheets.json")).json();
-  await Promise.all(Object.keys(sheetMeta).map(async (n) => { sheets[n] = await img(`/sprites/${n}.png`); }));
-  bg.hills = await img("/bg/hills.png"); bg.ground = await img("/bg/ground.png");
-  await Promise.all(OBJ_NAMES.map(async (n) => { bg.objs[n] = await img(`/bg/obj/${n}.png`); }));
+  await Promise.all(Object.keys(sheetMeta).map(async (n) => { sheets[n] = await img(`/sprites/${n}.webp`); }));
+  bg.hills = await img("/bg/hills.webp"); bg.ground = await img("/bg/ground.webp");
+  await Promise.all(OBJ_NAMES.map(async (n) => { bg.objs[n] = await img(`/bg/obj/${n}.webp`); }));
 }
 function anim(name) { return sheetMeta[name] ? { name, ...sheetMeta[name] } : null; }
 
@@ -90,8 +90,8 @@ const laneY = (d) => FAR_Y + (NEAR_Y - FAR_Y) * d;
 const laneK = (d) => 0.86 + 0.26 * d;
 
 const KIND = {
-  basic:   { hp: 60,  speed: 70,  dmg: 12, h: 280, reach: 95,  wind: 0.5, cd: 1.4, face: 1,  death: "basic_death",   walk: "basic_walk" },
-  runner:  { hp: 40,  speed: 175, dmg: 9,  h: 260, reach: 90,  wind: 0.32, cd: 1.0, face: 1, death: "runner_death",  walk: "runner_walk" },
+  basic:   { hp: 60,  speed: 70,  dmg: 12, h: 280, reach: 95,  wind: 0.5, cd: 1.4, face: -1, death: "basic_death",   walk: "basic_walk" },
+  runner:  { hp: 40,  speed: 175, dmg: 9,  h: 260, reach: 90,  wind: 0.32, cd: 1.0, face: -1, death: "runner_death",  walk: "runner_walk" },
   fat:     { hp: 200, speed: 45,  dmg: 22, h: 340, reach: 110, wind: 0.75, cd: 2.0, face: -1, death: "fat_death",    walk: "fat_walk" },
   spitter: { hp: 70,  speed: 60,  dmg: 8,  h: 285, reach: 95,  wind: 0.5, cd: 1.6, face: 1, death: "spitter_death", walk: "spitter_walk", ranged: true },
   bomber:  { hp: 50,  speed: 85,  dmg: 28, h: 290, reach: 130, wind: 0.8, cd: 9,   face: -1, death: "bomber_death",  walk: "bomber_walk", bomb: true },
