@@ -12,7 +12,7 @@ import { patchNoFlip } from './materials';
 import { Animator } from '../animation/animator';
 import { handSocket } from '../animation/grips';
 import { SpringBones, SPRING_DEFS, bodyColliders } from '../physics/springbones';
-import { debugSpear, debugBow } from './debugProps';
+import { buildSpear, buildBow, buildQuiver, buildKnife, buildPouch, buildFangCluster, buildMedallion } from './gear';
 import { DamageVisuals } from './damageVisuals';
 import type { WeaponCarry } from '../animation/gait';
 import type { DamageModel, HitInfo } from '../game/damage';
@@ -45,7 +45,12 @@ export class Character {
 
   /** Оружие: что в руке и что за спиной. */
   readonly weapons: { spear?: THREE.Object3D; bow?: THREE.Object3D } = {};
+  /** Прочее снаряжение на теле (колчан, нож, сумка, обереги). */
+  readonly gear: Record<string, THREE.Object3D> = {};
   carry: WeaponCarry = 'none';
+  /** Натяжение лука 0..1 (выставляет игрок): тетива идёт за правой рукой. */
+  bowDraw = 0;
+  private _nockV = new THREE.Vector3();
   /** Точки крепления: ладони (оружие) и спина. */
   readonly sockets: Record<'handL' | 'handR' | 'back', THREE.Object3D> = {
     handL: new THREE.Object3D(), handR: new THREE.Object3D(), back: new THREE.Object3D(),
@@ -85,8 +90,11 @@ export class Character {
     this.initSockets();
     this.springs = new SpringBones(this.rig, SPRING_DEFS, bodyColliders(this.rig));
     if (this.outfit === 'raider') this.addPlaceholderHelmet();
-    this.weapons.spear = debugSpear();
-    if (this.outfit === 'evenki') this.weapons.bow = debugBow();
+    this.weapons.spear = buildSpear(this.outfit === 'evenki' ? 'hunter' : 'raider');
+    if (this.outfit === 'evenki') {
+      this.weapons.bow = buildBow();
+      this.attachGear();
+    }
     this.setCarry('spear');
   }
 
@@ -120,13 +128,70 @@ export class Character {
     if (spear) {
       spear.removeFromParent();
       if (kind === 'spear') { spear.position.set(0, 0, 0); spear.quaternion.identity(); this.sockets.handR.add(spear); }
-      else { this.sockets.back.add(spear); spear.position.set(-0.02, 0.14, -0.03); spear.rotation.set(0.1, 0, -0.42); }
+      else { this.sockets.back.add(spear); spear.position.set(0.02, 0.1, -0.07); spear.rotation.set(0.12, 0, -0.5); }
     }
     if (bow) {
       bow.removeFromParent();
       if (kind === 'bow') { bow.position.set(0, 0, 0); bow.quaternion.identity(); this.sockets.handL.add(bow); }
-      else { this.sockets.back.add(bow); bow.position.set(0.03, 0.04, -0.07); bow.rotation.set(0.0, 0.2, 0.5); }
+      else { this.sockets.back.add(bow); bow.position.set(0.0, -0.02, -0.13); bow.rotation.set(0.0, 0.0, -0.95); }
     }
+  }
+
+  /** Поставить предмет на кость: позиция — в мировых координатах позы покоя (поворотов покоя нет). */
+  private put(name: string, obj: THREE.Object3D, bone: string, rest: [number, number, number], euler: [number, number, number] = [0, 0, 0], scale = 1): THREE.Object3D {
+    const spec = this.rig.specs.get(bone)!;
+    obj.position.set(rest[0] - spec.pos[0], rest[1] - spec.pos[1], rest[2] - spec.pos[2]);
+    obj.rotation.set(euler[0], euler[1], euler[2]);
+    obj.scale.setScalar(scale);
+    this.rig.b(bone).add(obj);
+    this.gear[name] = obj;
+    return obj;
+  }
+
+  /** Снаряжение героя: колчан со стрелами, нож, сумка, обереги (на пружинных костях). */
+  private attachGear(): void {
+    this.put('quiver', buildQuiver(), 'chest', [-0.115, 1.43, -0.245], [-0.14, 0, 0.5]);
+    this.put('knife', buildKnife(), 'hips', [0.175, 1.0, 0.115], [0, Math.PI - 0.55, 0.3]);
+    this.put('pouch', buildPouch(), 'hips', [-0.205, 0.995, -0.01], [0, -Math.PI / 2 + 0.2, 0]);
+    // обереги висят на пружинных цепочках: корень предмета = голова первой кости цепочки
+    const hang = (name: string, obj: THREE.Object3D, bone: string, scale = 1, euler: [number, number, number] = [0, 0, 0], dz = 0): void => {
+      const spec = this.rig.specs.get(bone)!;
+      void spec;
+      obj.position.set(0, 0, dz);
+      obj.rotation.set(euler[0], euler[1], euler[2]);
+      obj.scale.setScalar(scale);
+      this.rig.b(bone).add(obj);
+      this.gear[name] = obj;
+    };
+    hang('medallion', buildMedallion(), 'medal_1', 1, [0, 0, 0], 0.0);
+    this.gear.medallion.position.y = -0.084;
+    hang('fangsL', buildFangCluster({ feather: 'white' }), 'fangL_1', 0.8, [0, 0.15, 0]);
+    hang('fangsR', buildFangCluster({ feather: 'barred' }), 'fangR_1', 0.8, [0, -0.15, 0]);
+    hang('tasselL', buildFangCluster({ feather: 'dark' }), 'featherBeltL_1', 0.75, [0, 0.4, 0]);
+  }
+
+  /** Тетива лука: следует за правой рукой при натяжении; иначе — в покое. Возвращает мировую точку наложения стрелы. */
+  nockWorld(out = new THREE.Vector3()): THREE.Vector3 {
+    const bow = this.weapons.bow;
+    if (bow && this.carry === 'bow') {
+      const n = bow.userData.nockLocal as THREE.Vector3 | undefined;
+      bow.updateWorldMatrix(true, false);
+      return out.copy(n ?? this._nockV.set(0, 0, -0.17)).applyMatrix4(bow.matrixWorld);
+    }
+    return this.sockets.handR.getWorldPosition(out);
+  }
+
+  private updateBow(): void {
+    const bow = this.weapons.bow;
+    if (!bow || this.carry !== 'bow') return;
+    const fn = bow.userData.updateString as ((n: THREE.Vector3 | null, showArrow?: boolean) => void) | undefined;
+    if (!fn) return;
+    if (this.bowDraw > 0.02) {
+      bow.updateWorldMatrix(true, false);
+      this.sockets.handR.getWorldPosition(this._nockV);
+      bow.worldToLocal(this._nockV);
+      fn(this._nockV, true);
+    } else fn(null, false);
   }
 
   private initSockets(): void {
@@ -172,6 +237,7 @@ export class Character {
     if (this._animator && !this.ragdollActive) this._animator.update(dt);
     this.group.updateMatrixWorld(true);
     this.springs.update(dt);
+    this.updateBow();
   }
 
   addMesh(name: string, surf: Surface, material: THREE.Material): THREE.SkinnedMesh {

@@ -52,7 +52,11 @@ function zone(gb: GeoBuilder, y0: number, y1: number, r: (y: number) => number, 
   }, gb);
 }
 
-export function buildSpear(): THREE.Group {
+export type SpearStyle = 'hunter' | 'raider';
+
+/** Копьё героя (резьба, перья, бусины) или простое копьё налётчика (ясень, железо, сыромятные обмотки). */
+export function buildSpear(style: SpearStyle = 'hunter'): THREE.Group {
+  const raider = style === 'raider';
   const g = newGear('Spear');
 
   // ---------- Древко ----------
@@ -67,7 +71,8 @@ export function buildSpear(): THREE.Group {
   const ring = (y0: number, type: 0 | 1) => {
     const y1 = y0 + 0.052;
     const collar = (y: number) => 0.0007 + 0.0006 * (Math.exp(-(((y - y0) / 0.0035) ** 2)) + Math.exp(-(((y - y1) / 0.0035) ** 2)));
-    zone(carved, y0, y1, (y) => shaftR(y) + collar(y), { tile: 0.104, vOffset: type * 0.5, sides: 16, segs: 16 });
+    if (raider) zone(plain, y0, y1, (y) => shaftR(y) + 0.5 * collar(y), { tile: tW, vOffset: vOff(y0), sides: 14 });
+    else zone(carved, y0, y1, (y) => shaftR(y) + collar(y), { tile: 0.104, vOffset: type * 0.5, sides: 16, segs: 16 });
   };
   plainZone(-0.915, -0.80);
   ring(-0.80, 0);
@@ -86,10 +91,10 @@ export function buildSpear(): THREE.Group {
   plainZone(0.652, 0.70);
   ring(0.70, 0);
   plainZone(0.752, 0.80);
-  addMesh(g, plain, woodMat('shaft'), 'shaftPlain');
+  addMesh(g, plain, woodMat(raider ? 'ash' : 'shaft'), 'shaftPlain');
   addMesh(g, carved, carvedWoodMat('shaft'), 'shaftCarved');
   addMesh(g, wrapR, wrapMat('dark'), 'gripWrapR');
-  addMesh(g, wrapL, wrapMat('tan'), 'gripWrapL');
+  addMesh(g, wrapL, wrapMat(raider ? 'dark' : 'tan'), 'gripWrapL');
 
   // ---------- Концевые перетяжки жилой на обмотках ----------
   const sinew = new GeoBuilder();
@@ -123,7 +128,7 @@ export function buildSpear(): THREE.Group {
     loop: symmetricLoop(top), stations: 46, tile: 0.25, edgeTint: 1.3,
     tintAlong: (t) => 0.9 + 0.12 * t,
   }, flats, edges);
-  addMesh(g, flats, steelMat('forged'), 'headFlats');
+  addMesh(g, flats, steelMat(raider ? 'iron' : 'forged'), 'headFlats');
   addMesh(g, edges, steelMat('blade', { vertexColors: true }), 'headEdges');
 
   // втулка: кольца с переходом в плоский гребень
@@ -135,7 +140,7 @@ export function buildSpear(): THREE.Group {
   ];
   loftY({ rings: socketRings.map(([y, rx, rz]) => ({ y, rx, rz })), cols: 18, tile: 0.25, uAround: 1 }, sock);
   // торец втулки внизу (виден снизу как тёмное отверстие)
-  addMesh(g, sock, steelMat('forged'), 'socket');
+  addMesh(g, sock, steelMat(raider ? 'iron' : 'forged'), 'socket');
   // заклёпка через втулку
   const pin = new GeoBuilder();
   sphere(V(0.0215, 0.812, 0), 0.0034, 4, 8, pin);
@@ -175,7 +180,7 @@ export function buildSpear(): THREE.Group {
     const fg = featherGeometry({ length: f.len, width: f.wid, curl: f.curl, cup: f.wid * 0.1, twist: f.tw, mirror: f.mirror });
     feathers.append(fg, m);
   }
-  addMesh(g, feathers, featherMat('barred'), 'feathers');
+  if (!raider) addMesh(g, feathers, featherMat('barred'), 'feathers');
 
   // кожаные кисти с костяными бусинами и жильные хвосты
   const thongs = new GeoBuilder();
@@ -203,8 +208,10 @@ export function buildSpear(): THREE.Group {
       bead(beads, c, 0.0050, 0.9);
     }
   }
-  addMesh(g, thongs, cordMat('leather'), 'thongs');
-  addMesh(g, beads, boneMat('ivory'), 'beads');
+  if (!raider) {
+    addMesh(g, thongs, cordMat('leather'), 'thongs');
+    addMesh(g, beads, boneMat('ivory'), 'beads');
+  }
 
   // ---------- Сокеты ----------
   addSocket(g, 'gripR', 0, 0, 0);
@@ -212,7 +219,8 @@ export function buildSpear(): THREE.Group {
   addSocket(g, 'tip', 0, SPEAR.tip, 0);
   addSocket(g, 'butt', 0, SPEAR.butt, 0);
   addSocket(g, 'hitbase', 0, SPEAR.hitbase, 0);
-  return finishGear(g, { length: SPEAR.tip - SPEAR.butt, axis: 'Y', origin: 'gripR' });
+  g.userData.hitSegment = [V(0, 0.45, 0), V(0, SPEAR.tip, 0)];
+  return finishGear(g, { length: SPEAR.tip - SPEAR.butt, axis: 'Y', origin: 'gripR', style });
 }
 
 export { brassMat };

@@ -245,15 +245,7 @@ export class Player extends Combatant {
   }
 
   nockWorld(): THREE.Vector3 {
-    const bow = this.character.carried('bow');
-    const out = new THREE.Vector3();
-    if (bow) {
-      bow.updateWorldMatrix(true, false);
-      const nock = bow.userData.sockets?.nock as THREE.Object3D | undefined;
-      if (nock) return nock.getWorldPosition(out);
-      return out.set(0, 0, -0.17).applyMatrix4(bow.matrixWorld);
-    }
-    return this.character.rig.b('handR').getWorldPosition(out);
+    return this.character.nockWorld(new THREE.Vector3());
   }
 
   fireArrow(power: number): void {
@@ -441,6 +433,7 @@ class DrawState extends State<Player> {
     const slow = 1 + 0.9 * o.dm.weaponArmPenalty('L');
     o.drawProgress = Math.min(1, o.drawProgress + step / (0.82 * slow));
     a.scrub(o.drawProgress);
+    o.character.bowDraw = o.drawProgress;
     if (o.drawProgress >= 1) {
       o.stamina -= 3.5 * step;
       o.staminaDelay = 0.5;
@@ -455,6 +448,7 @@ class DrawState extends State<Player> {
     }
   }
   override exit(o: Player): void {
+    o.character.bowDraw = 0;
     o.character.animator.stopFull(0.1);
   }
 }

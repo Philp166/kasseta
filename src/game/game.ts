@@ -15,7 +15,7 @@ import { FX } from './fx';
 import { Projectiles } from './projectiles';
 import { createDevEnvironment } from './devEnv';
 import type { EnvironmentLike } from './envTypes';
-import { debugArrow } from '../character/debugProps';
+import { buildArrow } from '../character/gear';
 import { RNG } from '../core/util';
 
 export class Game implements World {
@@ -48,6 +48,9 @@ export class Game implements World {
   private waveTimer = 2.5;
   private rng = new RNG(2024);
   autoWaves = true;
+  /** Пауза (стартовый экран, меню): мир не симулируется, камера медленно кружит вокруг героя. */
+  paused = false;
+  private idleLook = new THREE.Vector2();
   /** События для интерфейса. */
   readonly events = new EventTarget();
 
@@ -146,7 +149,7 @@ export class Game implements World {
   }
 
   shootArrow(owner: Combatant, origin: THREE.Vector3, velocity: THREE.Vector3, damage: number): void {
-    const mesh = debugArrow();
+    const mesh = buildArrow(owner.team === 'enemy' ? 'raider' : 'hunter');
     this.projectiles.spawn({ pos: origin.clone(), vel: velocity.clone(), owner, damage, mesh });
     // враги слышат выстрел
     for (const e of this.combatants) if (e instanceof Enemy) e.hear(origin, 12);
@@ -223,8 +226,27 @@ export class Game implements World {
 
   stop(): void { this.running = false; }
 
+  pause(): void { this.paused = true; }
+  resume(): void { this.paused = false; }
+
+  /** Кадр на паузе: герой дышит, камера плывёт, окружение живёт; боевая логика и физика стоят. */
+  private stepPaused(dt: number, render: boolean): void {
+    this.time += dt;
+    this.frame++;
+    this.input.poll();
+    this.player.character.update(dt);
+    this.idleLook.set(dt * 0.1, 0);
+    const focus = this.player.position;
+    this.cam.update(dt, focus, this.idleLook, 0, false);
+    this.env.setShadowTarget(focus);
+    this.env.update(dt, this.cam.camera);
+    if (render) this.renderer.render(this.scene, this.cam.camera);
+    this.input.endFrame();
+  }
+
   /** Один кадр (можно вызывать вручную в тестах с произвольным dt; render=false — без отрисовки). */
   step(dt: number, render = true): void {
+    if (this.paused) { this.stepPaused(dt, render); return; }
     this.time += dt;
     this.frame++;
     this.input.poll();

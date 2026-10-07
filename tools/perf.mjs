@@ -1,6 +1,6 @@
 import { launch, openPage } from './lib.mjs';
 const browser = await launch();
-const { page, errors } = await openPage(browser, 'http://localhost:5173/?mode=game', { width: 960, height: 540 });
+const { page, errors } = await openPage(browser, 'http://localhost:5173/?mode=game&nostart=1', { width: 960, height: 540 });
 await page.waitForFunction('window.__ready === true', null, { timeout: 120000 });
 const out = await page.evaluate(() => {
   const g = window.__game; g.stop();

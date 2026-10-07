@@ -224,7 +224,8 @@ export interface LeatherOpts {
   burnish?: number;   // жирный блеск на выступах
 }
 
-export function makeLeatherTex(o: LeatherOpts): PBRMaps {
+/** Кожа до упаковки в текстуры — чтобы нанести тиснение/рисунок поверх (колчан, ножны, сумка). */
+export function leatherPBR(o: LeatherOpts): PBR {
   const S = o.size ?? texSize(512);
   const seed = o.seed ?? 1;
   const t = new PBR(S, S);
@@ -272,11 +273,14 @@ export function makeLeatherTex(o: LeatherOpts): PBRMaps {
   const sc = scratchMask(t, Math.round(60 * (S * S) / (512 * 512)), { len: [0.02, 0.1], width: [0.5, 1.2], alpha: [0.15, 0.55], seed: seed + 20 });
   t.paint(sc, { color: mixRGB(wear, [1, 1, 1], 0.1), dh: -0.08, k: 0.5, rough: 0.5 });
   t.cavity(0.9, 2, 0.5);
-  return t.textures({ normalStrength: 3.6 });
+  return t;
+}
+export function makeLeatherTex(o: LeatherOpts): PBRMaps {
+  return leatherPBR(o).textures({ normalStrength: 3.6 });
 }
 const scaleDark = (c: RGB): RGB => [c[0] * 0.6, c[1] * 0.6, c[2] * 0.6];
 
-const LEATHERS: Record<string, LeatherOpts> = {
+export const LEATHERS: Record<string, LeatherOpts> = {
   dark: { base: 0x4a2e1c, dark: 0x1e120a, wear: 0x8b6542, grain: 64, wrinkle: 0.7, rough: 0.62, stain: 0.5, scuff: 0.7, seed: 2 },
   tan: { base: 0x8a5a36, dark: 0x3d2414, wear: 0xc89a66, grain: 72, wrinkle: 0.45, rough: 0.58, stain: 0.35, scuff: 0.6, seed: 4 },
   red: { base: 0x6e3220, dark: 0x2a120a, wear: 0xa8653f, grain: 64, wrinkle: 0.55, rough: 0.6, stain: 0.4, scuff: 0.7, seed: 6 },
@@ -496,7 +500,8 @@ export interface BrassOpts {
   patinaAmt?: number; rough?: number; seed?: number; size?: number; hammer?: number;
 }
 
-export function makeBrassTex(o: BrassOpts): PBRMaps {
+/** Бронза до упаковки в текстуры (для нанесения рисунка: медальон). */
+export function brassPBR(o: BrassOpts): PBR {
   const S = o.size ?? texSize(512);
   const seed = o.seed ?? 1;
   const t = new PBR(S, S);
@@ -522,9 +527,12 @@ export function makeBrassTex(o: BrassOpts): PBRMaps {
   const sc = scratchMask(t, Math.round(160 * (S * S) / (512 * 512)), { len: [0.01, 0.08], width: [0.5, 1.1], alpha: [0.3, 0.8], seed: seed + 5 });
   t.paint(sc, { color: mixRGB(bright, [1, 1, 1], 0.2), dh: -0.08, k: 0.6, rough: 0.28, metal: 1 });
   t.cavity(0.8, 2, 0.5);
-  return t.textures({ normalStrength: 2.4 });
+  return t;
 }
-const BRASSES: Record<string, BrassOpts> = {
+export function makeBrassTex(o: BrassOpts): PBRMaps {
+  return brassPBR(o).textures({ normalStrength: 2.4 });
+}
+export const BRASSES: Record<string, BrassOpts> = {
   brass: { base: 0xa9792f, bright: 0xe3bb6a, patina: 0x4f7a58, dark: 0x4a3216, patinaAmt: 0.3, rough: 0.36, seed: 2 },
   bronze: { base: 0x8a5d2b, bright: 0xc78f4a, patina: 0x3f6d52, dark: 0x3a2610, patinaAmt: 0.5, rough: 0.42, seed: 5 },
   silver: { base: 0x9a9890, bright: 0xd8d6cf, patina: 0x4d4a44, dark: 0x3b3a36, patinaAmt: 0.45, rough: 0.34, seed: 8 },

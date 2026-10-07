@@ -1,6 +1,7 @@
 import { Character } from './character/character';
 import { Viewer } from './viewer/viewer';
 import { Game } from './game/game';
+import { UI } from './game/ui';
 import { debugSpear, debugBow } from './character/debugProps';
 
 const params = new URLSearchParams(location.search);
@@ -18,6 +19,11 @@ async function main() {
     (window as any).__dbg = { debugSpear, debugBow };
   } else {
     const game = await Game.create(canvas);
+    if (!params.has('noui')) {
+      const ui = new UI(game);
+      game.hooks.push((dt) => ui.update(dt));
+      (window as any).__ui = ui;
+    }
     game.start();
     (window as any).__game = game;
   }

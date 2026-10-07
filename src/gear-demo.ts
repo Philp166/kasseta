@@ -182,6 +182,23 @@ async function main() {
     viewer.setCam(0, 0, 1.55, 1.6 - (sel.length - 1) * 0.075, 30, 0, 0);
     (window as any).__tex = () => (window as any).__band_mixed ? (() => { const b = (window as any).__band_mixed; const c = document.createElement('canvas'); c.width = 2048; c.height = 256 * 3; const g = c.getContext('2d')!; g.drawImage(b.canvases.map, 0, 0); g.drawImage(b.canvases.normal, 0, 256); g.drawImage(b.canvases.orm, 0, 512); return c.toDataURL('image/png'); })() : '';
   }
+  if (mode === 'item') {
+    // один предмет: gear.html?mode=item&name=spear (несколько через запятую — в ряд)
+    const { GEAR } = await import('./character/gear/index');
+    const names = (nameParam || 'spear').split(',');
+    names.forEach((n, i) => {
+      const t0 = performance.now();
+      const obj = GEAR[n]();
+      log(`${n}: ${(performance.now() - t0).toFixed(0)} мс, ${countTriangles(obj)} треуг.`);
+      const d = obj.userData.display as { pos?: number[]; rot?: number[] } | undefined;
+      obj.position.set(i * 0.8 + (d?.pos?.[0] ?? 0), d?.pos?.[1] ?? 1.0, d?.pos?.[2] ?? 0);
+      if (d?.rot) obj.rotation.set(d.rot[0], d.rot[1], d.rot[2]);
+      obj.traverse((o) => { o.castShadow = true; o.receiveShadow = true; });
+      viewer.scene.add(obj);
+      (window as any)['__item_' + n] = obj;
+    });
+    viewer.setCam(0, 8, 5.2, 1.0, 30, 0, 0);
+  }
   viewer.start();
   (window as any).__ready = true;
 }

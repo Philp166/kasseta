@@ -1,6 +1,6 @@
 // Проверка игрового ядра в браузере: node tools/test-game.mjs [url]
 import { launch, openPage } from './lib.mjs';
-const url = process.argv[2] || 'http://localhost:5173/?mode=game';
+const url = process.argv[2] || 'http://localhost:5173/?mode=game&nostart=1';
 const browser = await launch();
 const { page, errors } = await openPage(browser, url, { width: 960, height: 540 });
 await page.waitForFunction('window.__ready === true', null, { timeout: 120000 });
