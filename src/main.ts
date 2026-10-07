@@ -5,6 +5,7 @@ import { UI } from './game/ui';
 import { debugSpear, debugBow } from './character/debugProps';
 import { preloadHuman, humanReady } from './character/human/human';
 import { bakeSkins } from './character/human/skin';
+import { preloadShell } from './character/shell/shell';
 
 const params = new URLSearchParams(location.search);
 const mode = params.get('mode') ?? 'game';
@@ -14,6 +15,8 @@ async function main() {
   if (!params.has('nohuman')) {
     await preloadHuman();
     if (humanReady()) await bakeSkins({ size: +(params.get('skin') ?? 1024) });
+    // оболочка одежды из внешней модели — пока экспериментальная (нужна модель в A-позе): включается ?shell=1
+    if (humanReady() && params.has('shell')) await preloadShell();
   }
   if (mode === 'viewer') {
     const character = new Character();

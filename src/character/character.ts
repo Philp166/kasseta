@@ -7,7 +7,7 @@ import { SkinHelper, Surface } from './surface';
 import { HeadShape } from './head';
 import { buildBody } from './body';
 import { buildRegionMap } from './regions';
-import { buildFurOutfit } from './outfit';
+import { buildFurOutfit, buildCuffsOnly } from './outfit';
 import { patchNoFlip } from './materials';
 import { Animator } from '../animation/animator';
 import { handSocket } from '../animation/grips';
@@ -17,15 +17,25 @@ import { DamageVisuals } from './damageVisuals';
 import { Human, humanReady, humanEyeImage } from './human/human';
 import { makeHumanMaterials } from './human/materials';
 import { getSkins } from './human/skin';
+import { shellReady, buildShell } from './shell/shell';
 import type { WeaponCarry } from '../animation/gait';
 import type { DamageModel, HitInfo } from '../game/damage';
 import type { Region } from './regions';
+
+/** Сгибание пальцев при полном хвате (градусы вокруг оси Z кисти для 1-й, 2-й, 3-й фаланги). */
+const FINGER_CURL: Record<string, [number, number, number]> = {
+  index: [26, 46, 30], middle: [32, 52, 32], ring: [38, 54, 34], pinky: [44, 56, 36],
+};
+/** Большой палец: [поворот к ладони вокруг Y, сгибание вокруг Z] по фалангам (градусы, знак по стороне). */
+const THUMB: Array<[number, number]> = [[-30, 10], [0, 30], [0, 34]];
 
 export interface CharacterOptions {
   outfit?: 'evenki' | 'raider';
   seed?: number;
   /** Плотность меха: 1 — герой, меньше — для врагов. */
   furQuality?: number;
+  /** Не использовать оболочку одежды из внешней модели (процедурная одежда). */
+  noShell?: boolean;
 }
 
 export class Character {
@@ -68,11 +78,24 @@ export class Character {
     this.group.add(this.rig.root);
     this.group.updateMatrixWorld(true);
     const useHuman = humanReady();
-    const body = buildBody(this.rig, this.sk, this.head, !useHuman);
+    // оболочка одежды героя из внешней модели (капюшон, накидка, кафтан, сапоги); рукава и манжеты — мои
+    const useShell = useHuman && shellReady() && this.outfit === 'evenki' && !opts.noShell;
+    const body = buildBody(this.rig, this.sk, this.head, !useHuman, useShell);
     const mat = (c: number, r = 0.85) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: 0 });
     const vmat = (r = 0.92, side: THREE.Side = THREE.FrontSide) => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: r, metalness: 0, side });
     if (useHuman) this.addHuman();
-    if (this.outfit === 'evenki') {
+    if (this.outfit === 'evenki' && useShell) {
+      this.addMesh('coat', body.sleeves, mat(0x3b2a1c, 0.95));
+      const co = buildCuffsOnly(this.sk, { fur: opts.furQuality ?? 1 });
+      const furMat0 = vmat(0.95, THREE.DoubleSide);
+      patchNoFlip(furMat0);
+      this.addMesh('cuffs', co.cuffs, vmat(0.95));
+      this.addMesh('fur', co.fur, furMat0);
+      this.stats = { blades: co.blades };
+      const sh = buildShell(this.rig, this.regionMap);
+      this.group.add(sh);
+      this.meshes.push(sh);
+    } else if (this.outfit === 'evenki') {
       if (!useHuman) this.addMesh('skin', body.skin, mat(0xb98a66, 0.6));
       this.addMesh('coat', body.coat, mat(0x4a3322, 0.95));
       this.addMesh('trousers', body.trousers, mat(0x2b2018, 0.95));
@@ -113,7 +136,7 @@ export class Character {
       switch (m.name) {
         case 'skin': case 'skinHead': dv.patch(mat, { skin: true }); break;
         case 'eyeL': case 'eyeR': case 'corneaL': case 'corneaR': case 'teethUpper': case 'teethLower': case 'tongue': case 'lashL': case 'lashR': break;
-        case 'coat': case 'trousers': case 'boots': case 'cuffs': dv.patch(mat, { tear: true }); break;
+        case 'coat': case 'trousers': case 'boots': case 'cuffs': case 'shell': dv.patch(mat, { tear: true }); break;
         case 'fur': case 'furBase': case 'wolf': dv.patch(mat, { fur: true }); break;
         default: dv.patch(mat, {});
       }
@@ -243,9 +266,52 @@ export class Character {
   /** Обновить анимацию и вторичную физику (вызывать каждый кадр). */
   update(dt: number): void {
     if (this._animator && !this.ragdollActive) this._animator.update(dt);
+    this.updateFingers(dt);
     this.group.updateMatrixWorld(true);
     this.springs.update(dt);
     this.updateBow();
+  }
+
+  // ---------- Пальцы ----------
+  private gripNow = { L: 0, R: 0 };
+  private gripTarget = { L: 0, R: 0 };
+  private fingerQ = new THREE.Quaternion();
+  private fingerE = new THREE.Euler();
+
+  /** Хват: пальцы сгибаются вокруг оси оружия (ось Z кисти). amount 0..1 — степень; thumb — прижатие большого. */
+  setHandGrip(side: 'L' | 'R', amount: number, thumb = amount): void {
+    const sgn = side === 'L' ? -1 : 1;
+    const FD = Math.PI / 180;
+    const set = (name: string, rx: number, ry: number, rz: number) => {
+      const b = this.rig.bones.get(name);
+      if (!b) return;
+      b.quaternion.setFromEuler(this.fingerE.set(rx * FD, ry * FD * sgn, rz * FD * sgn));
+    };
+    const k = amount;
+    for (const [f, c] of Object.entries(FINGER_CURL)) {
+      set(`${f}1${side}`, 0, 0, c[0] * k);
+      set(`${f}2${side}`, 0, 0, c[1] * k);
+      set(`${f}3${side}`, 0, 0, c[2] * k);
+    }
+    set(`thumb1${side}`, 0, THUMB[0][0] * thumb, THUMB[0][1] * thumb);
+    set(`thumb2${side}`, 0, THUMB[1][0] * thumb, THUMB[1][1] * thumb);
+    set(`thumb3${side}`, 0, THUMB[2][0] * thumb, THUMB[2][1] * thumb);
+  }
+
+  private updateFingers(dt: number): void {
+    if (!this.human) return;
+    const g = this.gripTarget;
+    if (this.ragdollActive || !this._animator) { g.L = 0; g.R = 0; }
+    else {
+      this._animator.grip(g);
+      // лук: левая — на рукояти (чуть слабее кулака), правая — «крючок» на тетиве
+      if (this.carry === 'bow') { g.R = Math.min(g.R, 0.75); g.L = Math.min(g.L, 0.85); }
+    }
+    const k = 1 - Math.exp(-16 * dt);
+    this.gripNow.L += (g.L - this.gripNow.L) * k;
+    this.gripNow.R += (g.R - this.gripNow.R) * k;
+    this.setHandGrip('L', this.gripNow.L, this.carry === 'bow' ? 0.8 : this.gripNow.L);
+    this.setHandGrip('R', this.gripNow.R, this.carry === 'bow' ? 0.0 : this.gripNow.R);
   }
 
   /** Тело, голова, глаза, зубы из данных MakeHuman. */

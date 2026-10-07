@@ -71,15 +71,23 @@ export class Viewer {
   }
 
   /** Поставить камеру: азимут (0 = спереди), высота над горизонтом, дистанция, высота цели. */
-  setCam(azimuthDeg: number, elevDeg: number, dist: number, targetY = 1.0, fov = 30) {
+  setCam(azimuthDeg: number, elevDeg: number, dist: number, targetY: number | string = 1.0, fov = 30, tx = 0, tz = 0) {
     const az = (azimuthDeg * Math.PI) / 180, el = (elevDeg * Math.PI) / 180;
     this.camera.fov = fov;
     this.camera.updateProjectionMatrix();
-    this.controls.target.set(0, targetY, 0);
+    // цель — высота (число) или имя кости (строка): камера смотрит на кость
+    let ty = 1.0;
+    if (typeof targetY === 'string') {
+      const b = this.character.rig.bones.get(targetY);
+      const p = new THREE.Vector3();
+      if (b) { this.character.group.updateMatrixWorld(true); b.getWorldPosition(p); }
+      tx = p.x; ty = p.y; tz = p.z;
+    } else ty = targetY;
+    this.controls.target.set(tx, ty, tz);
     this.camera.position.set(
-      Math.sin(az) * Math.cos(el) * dist,
-      targetY + Math.sin(el) * dist,
-      Math.cos(az) * Math.cos(el) * dist,
+      tx + Math.sin(az) * Math.cos(el) * dist,
+      ty + Math.sin(el) * dist,
+      tz + Math.cos(az) * Math.cos(el) * dist,
     );
     this.camera.lookAt(this.controls.target);
     this.controls.update();
@@ -93,7 +101,7 @@ export class Viewer {
    * Лист ракурсов в один PNG (data URL): каждая плитка — своя камера.
    * views: [азимут, высота камеры, дистанция, высота цели, fov?, подпись?]
    */
-  sheet(views: Array<[number, number, number, number, number?]>, tileW = 480, tileH = 720, cols = views.length): string {
+  sheet(views: Array<[number, number, number, number | string, number?, number?, number?]>, tileW = 480, tileH = 720, cols = views.length): string {
     const rows = Math.ceil(views.length / cols);
     const out = document.createElement('canvas');
     out.width = tileW * cols;
@@ -103,7 +111,7 @@ export class Viewer {
     this.renderer.setSize(tileW, tileH, false);
     this.camera.aspect = tileW / tileH;
     views.forEach((v, k) => {
-      this.setCam(v[0], v[1], v[2], v[3], v[4] ?? 30);
+      this.setCam(v[0], v[1], v[2], v[3], v[4] ?? 30, v[5] ?? 0, v[6] ?? 0);
       this.camera.aspect = tileW / tileH;
       this.camera.updateProjectionMatrix();
       this.renderer.render(this.scene, this.camera);

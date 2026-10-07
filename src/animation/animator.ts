@@ -176,6 +176,28 @@ export class Animator {
     else this.overlay.target = 1;
   }
 
+  /** Какие руки сейчас держат оружие (0..1): по IK-целям запечённых клипов (походка, бой, оверлей блока). */
+  grip(out = { L: 0, R: 0 }): { L: number; R: number } {
+    let L = 0, R = 0, ws = 0;
+    for (const [name, w] of this.weights) {
+      if (w.w <= 0.001 || !name.endsWith(':upper')) continue;
+      const base = name.slice(0, -6);
+      if (this.overlay && base === this.overlay.name) continue;
+      const h = this.lib.meta.get(base)?.hands;
+      if (!h) continue;
+      L += h.L * w.w; R += h.R * w.w; ws += w.w;
+    }
+    if (ws > 0) { L /= ws; R /= ws; }
+    const fh = this.full ? this.lib.meta.get(this.full.name)?.hands : undefined;
+    if (fh) { L += (fh.L - L) * this.fullW; R += (fh.R - R) * this.fullW; }
+    if (this.overlay) {
+      const oh = this.lib.meta.get(this.overlay.name)?.hands;
+      if (oh) { const k = this.overlay.w * (1 - this.fullW); L += (oh.L - L) * k; R += (oh.R - R) * k; }
+    }
+    out.L = L; out.R = R;
+    return out;
+  }
+
   // ---------- Отдача ----------
 
   /** Толчок корпуса (мировое направление удара локально персонажу: x вправо, z вперёд), сила 0..1. */

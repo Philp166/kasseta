@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 import { Rig } from '../character/rig';
-import { bakeClip, filterClip, isLowerBone, isUpperBone } from './pose';
+import { bakeClip, filterClip, isLowerBone, isUpperBone, CLIP_HANDS } from './pose';
 import { gaitPose, gaitDuration, GaitKind, WeaponCarry, Injury } from './gait';
 import { channelPose, readyKeys, thrustKeys, sweepKeys, heavyKeys, blockKeys, bowPose, rollPose } from './combat';
 
@@ -21,6 +21,8 @@ export interface ClipMeta {
   loop: boolean;
   /** События по нормализованному времени (для боя): окна урона и т.п. */
   events?: Record<string, number | [number, number]>;
+  /** Какие руки держат оружие (0..1 по доле кадров с IK-целью). */
+  hands?: { L: number; R: number };
 }
 
 export class AnimLibrary {
@@ -40,6 +42,7 @@ export class AnimLibrary {
   }
 
   add(clip: THREE.AnimationClip, meta: ClipMeta): void {
+    meta.hands = CLIP_HANDS.get(clip.name) ?? { L: 0, R: 0 };
     this.clips.set(clip.name, clip);
     this.meta.set(clip.name, meta);
     // слои «верх/низ» для смешивания поверх походки

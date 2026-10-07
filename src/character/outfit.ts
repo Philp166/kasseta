@@ -250,4 +250,13 @@ export function buildFurOutfit(rig: Rig, sk: SkinHelper, body: BodyParts, q: Out
   return { wolf, furBase, fur: fb.out, cuffs, blades: fb.blades };
 }
 
+/** Только меховые манжеты рукавов (для режима с внешней оболочкой одежды). */
+export function buildCuffsOnly(sk: SkinHelper, q: OutfitQuality): { cuffs: Surface; fur: Surface; blades: number } {
+  const cuffs = buildCuffs(sk);
+  const fb = new FurBuilder();
+  const trimFur = [[0x6a5646, 3], [0x85705a, 2], [0x4b3b2f, 2.5], [0xa38d74, 0.8]] as [number, number][];
+  fb.emit(cuffs, { density: 13000 * q.fur, length: [0.03, 0.06], width: [0.009, 0.015], lift: 0.6, droop: 0.55, comb: V(0, -1, 0), palette: trimFur, seed: 14, clumpSize: 0.02 });
+  return { cuffs, fur: fb.out, blades: fb.blades };
+}
+
 export { clamp as _clamp, COAT as _COAT };

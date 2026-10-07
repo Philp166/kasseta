@@ -15,6 +15,8 @@ export interface BodyParts {
   trousers: Surface;
   boots: Surface;
   belt: Surface;
+  /** Рукава отдельно (для режима с внешней оболочкой одежды). */
+  sleeves: Surface;
 }
 
 type Key = { y: number; rx: number; rz: number; cx?: number; cz?: number };
@@ -65,12 +67,13 @@ export const ARM_KEYS = (sx: number): Key[] => [
 const arcU = (th: number, rx: number, rz: number) => (th * (rx + rz) * 0.5) / 0.4;
 const vOf = (y: number) => (1.55 - y) / 0.4;
 
-export function buildBody(rig: Rig, sk: SkinHelper, head: HeadShape, withSkin = true): BodyParts {
+export function buildBody(rig: Rig, sk: SkinHelper, head: HeadShape, withSkin = true, splitSleeves = false): BodyParts {
   const skin = new Surface();
   const coat = new Surface();
   const trousers = new Surface();
   const boots = new Surface();
   const belt = new Surface();
+  const sleeves = new Surface();
 
   // ---------- Кожа: голова, шея, уши ----------
   if (withSkin) {
@@ -194,7 +197,7 @@ export function buildBody(rig: Rig, sk: SkinHelper, head: HeadShape, withSkin = 
   for (const [sx, S] of [[1, 'L'], [-1, 'R']] as const) {
     const keys = ARM_KEYS(sx);
     const rings = ringsFromKeys(keys, 22);
-    coat.append(
+    sleeves.append(
       vloft({
         rings, cols: 18, wrap: true,
         skin: (y) => {
@@ -207,6 +210,8 @@ export function buildBody(rig: Rig, sk: SkinHelper, head: HeadShape, withSkin = 
       }),
     );
   }
+
+  if (!splitSleeves) coat.append(sleeves);
 
   // ---------- Кулаки (хват вокруг древка вдоль оси Z) ----------
   if (withSkin) for (const S of ['L', 'R'] as const) skin.append(buildFist(rig, sk, S));
@@ -230,7 +235,7 @@ export function buildBody(rig: Rig, sk: SkinHelper, head: HeadShape, withSkin = 
       }),
     );
   }
-  return { skin, coat, trousers, boots, belt };
+  return { skin, coat, trousers, boots, belt, sleeves };
 }
 
 /** Кулак вокруг древка: ладонь, четыре пальца дугой и большой палец. Ось хвата — Z. */

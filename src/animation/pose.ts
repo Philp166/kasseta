@@ -148,6 +148,9 @@ export interface BakeOpts {
  * Запечь клип: poseAt(u, time) вызывается на каждом кадре. u — нормализованное время 0..1.
  * Пишутся кватернионы всех анимируемых костей (кроме пружинных), позиция бёдер и корня.
  */
+/** По запечённым клипам: доля кадров с IK-целью на руке (рука держит оружие). */
+export const CLIP_HANDS = new Map<string, { L: number; R: number }>();
+
 export function bakeClip(rig: Rig, name: string, duration: number, poseAt: (u: number, time: number) => FramePose, opts: BakeOpts = {}): THREE.AnimationClip {
   const fps = opts.fps ?? 30;
   const frames = Math.max(2, Math.round(duration * fps)) + (opts.loop ? 0 : 0);
@@ -159,10 +162,13 @@ export function bakeClip(rig: Rig, name: string, duration: number, poseAt: (u: n
   const rootQ: number[] = [];
   for (const b of bones) qvals.set(b.name, []);
   const prev = new Map<string, THREE.Quaternion>();
+  let handsL = 0, handsR = 0;
   for (let f = 0; f <= frames; f++) {
     const u = f / frames;
     const time = u * duration;
-    applyFramePose(rig, poseAt(u, time));
+    const fp = poseAt(u, time);
+    applyFramePose(rig, fp);
+    for (const t of fp.ik ?? []) { if (t.limb === 'armL') handsL++; else if (t.limb === 'armR') handsR++; }
     times.push(time);
     for (const b of bones) {
       const q = b.quaternion.clone();
@@ -194,6 +200,7 @@ export function bakeClip(rig: Rig, name: string, duration: number, poseAt: (u: n
     tracks.push(new THREE.QuaternionKeyframeTrack('root.quaternion', times, rootQ));
   }
   const clip = new THREE.AnimationClip(name, duration, tracks);
+  CLIP_HANDS.set(name, { L: handsL / (frames + 1), R: handsR / (frames + 1) });
   rig.resetPose();
   rig.root.updateMatrixWorld(true);
   return clip;
