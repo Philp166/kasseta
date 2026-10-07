@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Снаряжение — витрина</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0b0d10; overflow: hidden; font-family: system-ui, sans-serif; }
+      canvas#view { display: block; width: 100vw; height: 100vh; }
+      #ui { position: fixed; left: 10px; top: 10px; color: #cbbfa8; font-size: 12px; line-height: 1.5; max-width: 340px;
+            background: rgba(10, 12, 15, 0.72); padding: 8px 10px; border: 1px solid #2a2f36; border-radius: 6px; }
+      #ui b { color: #e8d9b8; }
+      #ui a { color: #9fc0ff; text-decoration: none; margin-right: 8px; cursor: pointer; }
+      #ui .row { margin: 2px 0; }
+      #tris { white-space: pre; font-family: ui-monospace, monospace; font-size: 11px; color: #a8a090; }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="ui">
+      <div class="row"><b>Эвенкийский воин — снаряжение</b></div>
+      <div class="row" id="modes"></div>
+      <div class="row" id="items"></div>
+      <div class="row" id="tris"></div>
+    </div>
+    <script type="module" src="/src/gear-demo.ts"></script>
+  </body>
+</html>

@@ -13,11 +13,13 @@
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.21.0",
+    "@pmndrs/assets": "^1.7.0",
     "lil-gui": "^0.21.0",
     "three": "^0.186.1",
     "yuka": "^0.7.8"
   },
   "devDependencies": {
+    "@gltf-transform/core": "^4.5.1",
     "@types/three": "^0.186.0",
     "playwright-core": "^1.63.0",
     "typescript": "^7.0.2",

@@ -2,7 +2,7 @@
 // views — массив [азимут, высота, дистанция, высота цели, fov?]
 import fs from 'node:fs';
 import { launch, openPage } from './lib.mjs';
-const [out, viewsJson, tw = '480', th = '720', cols = '', pre = '', url = 'http://localhost:5173/'] = process.argv.slice(2);
+const [out, viewsJson, tw = '480', th = '720', cols = '', pre = '', url = 'http://localhost:5173/?mode=viewer'] = process.argv.slice(2);
 const views = JSON.parse(viewsJson);
 const browser = await launch();
 const { page, errors } = await openPage(browser, url, { width: 1000, height: 700 });

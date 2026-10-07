@@ -14,6 +14,8 @@ export class Viewer {
   key: THREE.DirectionalLight;
   private last = performance.now();
   onTick: Array<(dt: number) => void> = [];
+  /** Крутить анимацию и физику персонажа в цикле просмотра. */
+  animate = true;
 
   constructor(canvas: HTMLCanvasElement, character: Character) {
     this.character = character;
@@ -112,11 +114,35 @@ export class Viewer {
     return out.toDataURL('image/png');
   }
 
+  /** Серия кадров: на каждой плитке своя поза (poseFn(k)), камера одна. */
+  sheetSeq(count: number, view: [number, number, number, number, number?], tileW: number, tileH: number, cols: number, poseFn: (k: number) => void): string {
+    const rows = Math.ceil(count / cols);
+    const out = document.createElement('canvas');
+    out.width = tileW * cols;
+    out.height = tileH * rows;
+    const ctx = out.getContext('2d')!;
+    const prevAspect = this.camera.aspect;
+    this.renderer.setSize(tileW, tileH, false);
+    this.setCam(view[0], view[1], view[2], view[3], view[4] ?? 30);
+    this.camera.aspect = tileW / tileH;
+    this.camera.updateProjectionMatrix();
+    for (let k = 0; k < count; k++) {
+      poseFn(k);
+      this.character.group.updateMatrixWorld(true);
+      this.renderer.render(this.scene, this.camera);
+      ctx.drawImage(this.renderer.domElement, (k % cols) * tileW, Math.floor(k / cols) * tileH);
+    }
+    this.camera.aspect = prevAspect;
+    this.resize();
+    return out.toDataURL('image/png');
+  }
+
   start() {
     const loop = () => {
       const now = performance.now();
       const dt = Math.min((now - this.last) / 1000, 0.1);
       this.last = now;
+      if (this.animate) this.character.update(dt);
       for (const f of this.onTick) f(dt);
       this.controls.update();
       this.render();
