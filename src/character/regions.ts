@@ -10,8 +10,8 @@ export const REGION_INDEX: Record<Region, number> = { head: 0, torso: 1, armL: 2
 export function regionOfBoneName(n: string): Region | null {
   if (n === 'root') return null;
   if (n === 'head' || n === 'neck' || n.startsWith('hair') || n.startsWith('ear')) return 'head';
-  if (/^(shoulder|upperArm|lowerArm|hand)L$/.test(n)) return 'armL';
-  if (/^(shoulder|upperArm|lowerArm|hand)R$/.test(n)) return 'armR';
+  if (/^(shoulder|upperArm|lowerArm|hand)L$/.test(n) || /^(thumb|index|middle|ring|pinky)[123]L$/.test(n)) return 'armL';
+  if (/^(shoulder|upperArm|lowerArm|hand)R$/.test(n) || /^(thumb|index|middle|ring|pinky)[123]R$/.test(n)) return 'armR';
   if (/^(upperLeg|lowerLeg|foot|toe)L$/.test(n)) return 'legL';
   if (/^(upperLeg|lowerLeg|foot|toe)R$/.test(n)) return 'legR';
   return 'torso'; // hips, spine, chest, подол, накидка, обереги, ремни

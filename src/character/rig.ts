@@ -4,6 +4,7 @@
 // Это упрощает анимацию: любой клип = «поворот относительно покоя».
 
 import * as THREE from 'three';
+import { FINGER_BONE_SPECS } from './human/fingers';
 
 export interface BoneSpec {
   name: string;
@@ -54,7 +55,7 @@ export const COAT = {
     // от талии (y≈1.04) к подолу (y≈0.54) кафтан раскрывается колоколом
     const t = THREE.MathUtils.clamp((1.04 - y) / (1.04 - 0.54), 0, 1);
     const e = t * t * 0.55 + t * 0.45;
-    return { rx: 0.172 + 0.13 * e, rz: 0.114 + 0.108 * e, cz: 0.0 - 0.012 * t };
+    return { rx: 0.186 + 0.12 * e, rz: 0.134 + 0.1 * e, cz: 0.041 * (1 - t) - 0.01 * t };
   },
 };
 
@@ -102,10 +103,13 @@ function secondary(): BoneSpec[] {
   return out;
 }
 
-export const BONE_SPECS: BoneSpec[] = [...core(), ...secondary()];
+export const BONE_SPECS: BoneSpec[] = [...core(), ...secondary(), ...FINGER_BONE_SPECS];
 
 /** Кости, которые двигает пружинная физика (а не анимация). */
 export const SECONDARY_PREFIXES = ['hair', 'pelt', 'ear', 'skirt', 'medal', 'fang', 'featherBelt', 'strap'];
+
+/** Пальцы: thumb1L … pinky3R. */
+export const isFingerBone = (n: string): boolean => /^(thumb|index|middle|ring|pinky)[123][LR]$/.test(n);
 
 export class Rig {
   readonly bones = new Map<string, THREE.Bone>();

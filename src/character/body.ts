@@ -19,14 +19,17 @@ export interface BodyParts {
 
 type Key = { y: number; rx: number; rz: number; cx?: number; cz?: number };
 
+// Крой по измеренным сечениям человека (tools/build-human.mjs → profiles): кафтан свободный, зазор ≈ 2.5 см.
 export const TORSO_KEYS: Key[] = [
-  { y: 1.505, rx: 0.105, rz: 0.095, cz: 0.0 },
-  { y: 1.47, rx: 0.185, rz: 0.113, cz: 0.0 },
-  { y: 1.43, rx: 0.208, rz: 0.12, cz: 0.0 },
-  { y: 1.33, rx: 0.193, rz: 0.128, cz: 0.006 },
-  { y: 1.2, rx: 0.172, rz: 0.118, cz: 0.004 },
-  { y: 1.1, rx: 0.166, rz: 0.111, cz: 0.0 },
-  { y: 1.04, rx: 0.172, rz: 0.114, cz: 0.0 },
+  { y: 1.545, rx: 0.088, rz: 0.072, cz: 0.01 },
+  { y: 1.50, rx: 0.176, rz: 0.104, cz: 0.002 },
+  { y: 1.46, rx: 0.240, rz: 0.126, cz: -0.006 },
+  { y: 1.42, rx: 0.262, rz: 0.15, cz: 0.0 },
+  { y: 1.36, rx: 0.235, rz: 0.168, cz: 0.015 },
+  { y: 1.30, rx: 0.224, rz: 0.163, cz: 0.018 },
+  { y: 1.20, rx: 0.192, rz: 0.142, cz: 0.02 },
+  { y: 1.10, rx: 0.172, rz: 0.127, cz: 0.037 },
+  { y: 1.04, rx: 0.185, rz: 0.132, cz: 0.041 },
 ];
 
 function evalKeys(keys: Key[], y: number): Key {
@@ -51,18 +54,18 @@ export function coatRadius(y: number): { rx: number; rz: number; cz: number } {
 }
 
 export const ARM_KEYS = (sx: number): Key[] => [
-  { y: 1.47, rx: 0.088, rz: 0.09, cx: sx * 0.2 },
-  { y: 1.4, rx: 0.088, rz: 0.09, cx: sx * 0.205 },
-  { y: 1.28, rx: 0.08, rz: 0.082, cx: sx * 0.213 },
-  { y: 1.13, rx: 0.074, rz: 0.078, cx: sx * 0.222 },
-  { y: 1.0, rx: 0.067, rz: 0.07, cx: sx * 0.23 },
+  { y: 1.47, rx: 0.1, rz: 0.115, cx: sx * 0.2 },
+  { y: 1.4, rx: 0.105, rz: 0.13, cx: sx * 0.205 },
+  { y: 1.28, rx: 0.088, rz: 0.098, cx: sx * 0.212 },
+  { y: 1.13, rx: 0.076, rz: 0.078, cx: sx * 0.222 },
+  { y: 1.0, rx: 0.068, rz: 0.07, cx: sx * 0.229 },
   { y: 0.9, rx: 0.062, rz: 0.064, cx: sx * 0.234 },
 ];
 
 const arcU = (th: number, rx: number, rz: number) => (th * (rx + rz) * 0.5) / 0.4;
 const vOf = (y: number) => (1.55 - y) / 0.4;
 
-export function buildBody(rig: Rig, sk: SkinHelper, head: HeadShape): BodyParts {
+export function buildBody(rig: Rig, sk: SkinHelper, head: HeadShape, withSkin = true): BodyParts {
   const skin = new Surface();
   const coat = new Surface();
   const trousers = new Surface();
@@ -70,16 +73,18 @@ export function buildBody(rig: Rig, sk: SkinHelper, head: HeadShape): BodyParts 
   const belt = new Surface();
 
   // ---------- Кожа: голова, шея, уши ----------
-  skin.append(head.build(sk));
-  skin.append(buildNeck(sk));
-  skin.append(buildEars(sk));
+  if (withSkin) {
+    skin.append(head.build(sk));
+    skin.append(buildNeck(sk));
+    skin.append(buildEars(sk));
+  }
 
   // ---------- Ноги ----------
   for (const [sx, S] of [[1, 'L'], [-1, 'R']] as const) {
     const cx = sx * 0.1;
     const trKeys: Key[] = [
-      { y: 0.97, rx: 0.098, rz: 0.108, cx: sx * 0.098 },
-      { y: 0.8, rx: 0.092, rz: 0.1, cx: sx * 0.099 },
+      { y: 0.97, rx: 0.102, rz: 0.148, cx: sx * 0.104, cz: 0.02 },
+      { y: 0.8, rx: 0.1, rz: 0.108, cx: sx * 0.101, cz: 0.005 },
       { y: 0.62, rx: 0.078, rz: 0.083, cx },
       { y: 0.5, rx: 0.072, rz: 0.078, cx },
       { y: 0.34, rx: 0.065, rz: 0.07, cx },
@@ -204,7 +209,7 @@ export function buildBody(rig: Rig, sk: SkinHelper, head: HeadShape): BodyParts 
   }
 
   // ---------- Кулаки (хват вокруг древка вдоль оси Z) ----------
-  for (const S of ['L', 'R'] as const) skin.append(buildFist(rig, sk, S));
+  if (withSkin) for (const S of ['L', 'R'] as const) skin.append(buildFist(rig, sk, S));
 
   // ---------- Пояс ----------
   const bandRings = (y0: number, y1: number, off: number): Ring[] => {

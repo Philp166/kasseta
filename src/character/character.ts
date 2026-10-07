@@ -14,6 +14,9 @@ import { handSocket } from '../animation/grips';
 import { SpringBones, SPRING_DEFS, bodyColliders } from '../physics/springbones';
 import { buildSpear, buildBow, buildQuiver, buildKnife, buildPouch, buildFangCluster, buildMedallion } from './gear';
 import { DamageVisuals } from './damageVisuals';
+import { Human, humanReady, humanEyeImage } from './human/human';
+import { makeHumanMaterials } from './human/materials';
+import { getSkins } from './human/skin';
 import type { WeaponCarry } from '../animation/gait';
 import type { DamageModel, HitInfo } from '../game/damage';
 import type { Region } from './regions';
@@ -32,6 +35,8 @@ export class Character {
   readonly sk = new SkinHelper(this.rig);
   readonly head = new HeadShape();
   readonly regionMap = buildRegionMap(this.rig);
+  /** Реалистичный человек (MakeHuman) — если данные загружены; иначе старая процедурная голова. */
+  human: Human | null = null;
   readonly outfit: 'evenki' | 'raider';
   stats = { blades: 0 };
 
@@ -62,11 +67,13 @@ export class Character {
     this.group.name = 'Character';
     this.group.add(this.rig.root);
     this.group.updateMatrixWorld(true);
-    const body = buildBody(this.rig, this.sk, this.head);
+    const useHuman = humanReady();
+    const body = buildBody(this.rig, this.sk, this.head, !useHuman);
     const mat = (c: number, r = 0.85) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: 0 });
     const vmat = (r = 0.92, side: THREE.Side = THREE.FrontSide) => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: r, metalness: 0, side });
+    if (useHuman) this.addHuman();
     if (this.outfit === 'evenki') {
-      this.addMesh('skin', body.skin, mat(0xb98a66, 0.6));
+      if (!useHuman) this.addMesh('skin', body.skin, mat(0xb98a66, 0.6));
       this.addMesh('coat', body.coat, mat(0x4a3322, 0.95));
       this.addMesh('trousers', body.trousers, mat(0x2b2018, 0.95));
       this.addMesh('boots', body.boots, mat(0x3b2a1c, 0.9));
@@ -80,7 +87,7 @@ export class Character {
       this.addMesh('fur', outfit.fur, furMat);
       this.stats = { blades: outfit.blades };
     } else {
-      this.addMesh('skin', body.skin, mat(0xc29a76, 0.6));
+      if (!useHuman) this.addMesh('skin', body.skin, mat(0xc29a76, 0.6));
       this.addMesh('coat', body.coat, mat(0x3e444a, 0.92));
       this.addMesh('trousers', body.trousers, mat(0x2d2924, 0.95));
       this.addMesh('boots', body.boots, mat(0x2a211a, 0.88));
@@ -104,7 +111,8 @@ export class Character {
     for (const m of this.meshes) {
       const mat = m.material as THREE.MeshStandardMaterial;
       switch (m.name) {
-        case 'skin': dv.patch(mat, { skin: true }); break;
+        case 'skin': case 'skinHead': dv.patch(mat, { skin: true }); break;
+        case 'eyeL': case 'eyeR': case 'corneaL': case 'corneaR': case 'teethUpper': case 'teethLower': case 'tongue': case 'lashL': case 'lashR': break;
         case 'coat': case 'trousers': case 'boots': case 'cuffs': dv.patch(mat, { tear: true }); break;
         case 'fur': case 'furBase': case 'wolf': dv.patch(mat, { fur: true }); break;
         default: dv.patch(mat, {});
@@ -238,6 +246,15 @@ export class Character {
     this.group.updateMatrixWorld(true);
     this.springs.update(dt);
     this.updateBow();
+  }
+
+  /** Тело, голова, глаза, зубы из данных MakeHuman. */
+  private addHuman(): void {
+    const sk = getSkins();
+    const mats = makeHumanMaterials({ eyeImage: humanEyeImage(), head: sk?.head ?? {}, body: sk?.body ?? {}, tone: this.outfit === 'evenki' ? 0xb08462 : 0xc29a76 });
+    const h = new Human(this.rig, this.regionMap, mats);
+    for (const m of h.meshes) { this.group.add(m); this.meshes.push(m); }
+    this.human = h;
   }
 
   addMesh(name: string, surf: Surface, material: THREE.Material): THREE.SkinnedMesh {

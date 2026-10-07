@@ -3,12 +3,18 @@ import { Viewer } from './viewer/viewer';
 import { Game } from './game/game';
 import { UI } from './game/ui';
 import { debugSpear, debugBow } from './character/debugProps';
+import { preloadHuman, humanReady } from './character/human/human';
+import { bakeSkins } from './character/human/skin';
 
 const params = new URLSearchParams(location.search);
 const mode = params.get('mode') ?? 'game';
 const canvas = document.getElementById('view') as HTMLCanvasElement;
 
 async function main() {
+  if (!params.has('nohuman')) {
+    await preloadHuman();
+    if (humanReady()) await bakeSkins({ size: +(params.get('skin') ?? 1024) });
+  }
   if (mode === 'viewer') {
     const character = new Character();
     const viewer = new Viewer(canvas, character);
